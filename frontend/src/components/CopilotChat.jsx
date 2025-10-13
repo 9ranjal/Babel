@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
-import { ScrollArea } from "../components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { Send, Wand2, MessageSquareText, Info, Loader2 } from "lucide-react";
 import { mockAIResponse, loadInitialState, persistState } from "../mock";
@@ -59,9 +58,9 @@ export default function CopilotChat({ onSuggestion }) {
 
   const quickPrompts = useMemo(
     () => [
-      { id: "qp1", label: "Redline: Valuation +$2M", text: "Please increase the valuation cap by $2,000,000" },
-      { id: "qp2", label: "Explain Liquidation", text: "Explain liquidation preference (1x non-participating) in plain English" },
-      { id: "qp3", label: "Tighten Discount", text: "Redline the discount to 15%" },
+      { id: "qp1", label: "Simplify Clause", text: "Simplify this clause to be concise and founder-friendly" },
+      { id: "qp2", label: "Add Liquidation Pref", text: "Add a 1x non-participating liquidation preference clause" },
+      { id: "qp3", label: "Check Founder Protections", text: "Review for founder protections and propose improvements" },
     ],
     []
   );
@@ -74,7 +73,7 @@ export default function CopilotChat({ onSuggestion }) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-white/60 backdrop-blur-sm border-r border-zinc-200">
+    <div className="h-full flex flex-col bg-white/60 backdrop-blur-sm border-r border-zinc-200" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui' }}>
       <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-200">
         <div className="flex items-center gap-2">
           <MessageSquareText size={18} className="text-zinc-700" />
