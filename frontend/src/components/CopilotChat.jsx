@@ -1,0 +1,141 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "../components/ui/button";
+import { Textarea } from "../components/ui/textarea";
+import { Badge } from "../components/ui/badge";
+import { ScrollArea } from "../components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
+import { Send, Wand2, MessageSquareText, Info, Loader2 } from "lucide-react";
+import { mockAIResponse, loadInitialState, persistState } from "../mock";
+
+const Message = ({ msg }) => {
+  const isAssistant = msg.role === "assistant";
+  return (
+    <div className={`flex ${isAssistant ? "justify-start" : "justify-end"}`}>
+      <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed shadow-sm transition-colors ${
+        isAssistant ? "bg-zinc-100 text-zinc-900" : "bg-indigo-600 text-white"
+      }`}>
+        <div className="whitespace-pre-wrap">{msg.content}</div>
+        {msg.suggestion ? (
+          <div className="mt-2 flex items-center gap-2 text-xs">
+            <Badge className="bg-indigo-100 text-indigo-700">Suggestion</Badge>
+            {msg.suggestion.clauseHint ? (
+              <span className="text-zinc-700">{msg.suggestion.clauseHint}</span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+export default function CopilotChat({ onSuggestion }) {
+  const [chat, setChat] = useState(loadInitialState().chat);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    persistState({ chat });
+  }, [chat]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chat, loading]);
+
+  const send = async () => {
+    if (!input.trim()) return;
+    const userMsg = { id: `u-${Date.now()}`, role: "user", content: input.trim(), ts: Date.now() };
+    setChat((c) => [...c, userMsg]);
+    setInput("");
+    setLoading(true);
+    setTimeout(() => {
+      const ai = mockAIResponse(userMsg.content);
+      const aiMsg = { id: `a-${Date.now()}`, ts: Date.now(), ...ai };
+      setChat((c) => [...c, aiMsg]);
+      if (aiMsg.suggestion && typeof onSuggestion === "function") onSuggestion(aiMsg.suggestion);
+      setLoading(false);
+    }, 500);
+  };
+
+  const quickPrompts = useMemo(
+    () => [
+      { id: "qp1", label: "Redline: Valuation +$2M", text: "Please increase the valuation cap by $2,000,000" },
+      { id: "qp2", label: "Explain Liquidation", text: "Explain liquidation preference (1x non-participating) in plain English" },
+      { id: "qp3", label: "Tighten Discount", text: "Redline the discount to 15%" },
+    ],
+    []
+  );
+
+  const onKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-white/60 backdrop-blur-sm border-r border-zinc-200">
+      <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-200">
+        <div className="flex items-center gap-2">
+          <MessageSquareText size={18} className="text-zinc-700" />
+          <div className="text-sm font-medium text-zinc-900">Copilot</div>
+          <Badge className="bg-indigo-50 text-indigo-700">GPT-4</Badge>
+        </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger className="text-zinc-500">
+              <Info size={16} />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs text-xs">
+              AI responses are mocked in this preview. Backend and real LLM will be integrated next.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+
+      <div className="px-4 py-3">
+        <div className="flex flex-wrap gap-2">
+          {quickPrompts.map((qp) => (
+            <Button
+              key={qp.id}
+              variant="secondary"
+              className="h-8 px-2 py-0 text-xs bg-zinc-100 hover:bg-zinc-200 text-zinc-800"
+              onClick={() => setInput(qp.text)}
+            >
+              <Wand2 size={14} className="mr-1" /> {qp.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 px-4 overflow-auto space-y-3">
+        {chat.map((m) => (
+          <Message key={m.id} msg={m} />
+        ))}
+        {loading ? (
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <Loader2 size={14} className="animate-spin" /> Generating suggestion...
+          </div>
+        ) : null}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="p-3 border-t border-zinc-200">
+        <div className="bg-white rounded-lg border border-zinc-300 p-2 focus-within:ring-2 focus-within:ring-indigo-200">
+          <Textarea
+            placeholder="Ask to redline or explain… (Enter to send, Shift+Enter for newline)"
+            className="min-h-[60px] resize-none focus-visible:ring-0 focus:outline-none"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={onKeyDown}
+          />
+          <div className="flex justify-end mt-2">
+            <Button onClick={send} disabled={!input.trim() || loading} className="bg-indigo-600 hover:bg-indigo-700">
+              {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />} Send
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
