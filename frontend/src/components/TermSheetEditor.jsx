@@ -8,19 +8,33 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../com
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Separator } from "../components/ui/separator";
-import { Download, History, Check, X, MessageSquarePlus, StickyNote } from "lucide-react";
+import { Download, History, Check, X, MessageSquarePlus } from "lucide-react";
 import { loadInitialState, persistState } from "../mock";
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function applySuggestion(text, suggestion) {
   if (!suggestion) return text;
   if (suggestion.type === "replace") {
     return text.replace(suggestion.pattern, suggestion.replaceWith);
   }
-  return text;
-}
-
-function removeSuggestion(text, suggestion) {
-  // For replace, just keep original text (no-op as we didn't change state yet for preview-only)
+  if (suggestion.type === "insert") {
+    const pattern = suggestion.pattern;
+    const idx = text.indexOf(pattern);
+    if (idx === -1) return text + (suggestion.insertText || "");
+    if (suggestion.position === "before") {
+      return text.slice(0, idx) + (suggestion.insertText || "") + text.slice(idx);
+    }
+    // after
+    const afterIdx = idx + pattern.length;
+    return text.slice(0, afterIdx) + (suggestion.insertText || "") + text.slice(afterIdx);
+  }
+  if (suggestion.type === "delete") {
+    const pattern = suggestion.pattern;
+    return text.replace(pattern, "");
+  }
   return text;
 }
 
@@ -48,7 +62,7 @@ export default function TermSheetEditor({ incomingSuggestion }) {
     const newText = applySuggestion(text, sugg);
     setText(newText);
     setPending((p) => p.filter((s) => s.id !== sugg.id));
-    saveVersion("Accepted: " + (sugg.clauseHint || sugg.pattern));
+    saveVersion("Accepted: " + (sugg.clauseHint || sugg.pattern || sugg.type));
   };
 
   const rejectSuggestion = (sugg) => {
@@ -109,11 +123,23 @@ export default function TermSheetEditor({ incomingSuggestion }) {
   };
 
   const highlightedText = useMemo(() => {
-    // Render pending suggestions as simple inline redlines before acceptance
+    // Start with original text and layer tracked changes
     let html = text;
+    // Insertions: underline green inserted text after/before the anchor
+    pending.forEach((s) => {
+      if (s.type === "insert" && s.pattern && s.insertText) {
+        const pattern = escapeRegExp(s.pattern);
+        const reg = new RegExp(pattern, "g");
+        html = html.replace(reg, (m) => {
+          const ins = `<span class='underline decoration-green-500 decoration-2 underline-offset-4 text-green-700 bg-green-50 rounded px-0.5'>${s.insertText}</span>`;
+          return s.position === "before" ? ins + m : m + ins;
+        });
+      }
+    });
+    // Replaces: strike original and show green replacement
     pending.forEach((s) => {
       if (s.type === "replace") {
-        const pattern = s.pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const pattern = escapeRegExp(s.pattern);
         const reg = new RegExp(pattern, "g");
         html = html.replace(
           reg,
@@ -123,9 +149,20 @@ export default function TermSheetEditor({ incomingSuggestion }) {
         );
       }
     });
+    // Deletions: strike the target pattern
+    pending.forEach((s) => {
+      if (s.type === "delete" && s.pattern) {
+        const pattern = escapeRegExp(s.pattern);
+        const reg = new RegExp(pattern, "g");
+        html = html.replace(
+          reg,
+          (m) => `<span class='line-through text-red-700 bg-red-50 rounded px-1'>${m}</span>`
+        );
+      }
+    });
     // Comments: underline anchors
     comments.forEach((c) => {
-      const pattern = c.anchorPattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const pattern = escapeRegExp(c.anchorPattern);
       const reg = new RegExp(pattern, "g");
       html = html.replace(
         reg,
@@ -165,7 +202,7 @@ export default function TermSheetEditor({ incomingSuggestion }) {
           <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={acceptAll}>
             <Check size={16} className="mr-2" /> Accept All
           </Button>
-          <Button variant="destructive" onClick={rejectAll}>
+          <Button variant="destructive" onClick={() => setPending([])}>
             <X size={16} className="mr-2" /> Reject All
           </Button>
         </div>
@@ -203,7 +240,7 @@ export default function TermSheetEditor({ incomingSuggestion }) {
                   ) : (
                     pending.map((s) => (
                       <div key={s.id} className="border border-zinc-200 bg-white rounded p-3 text-sm">
-                        <div className="font-medium text-zinc-900">{s.clauseHint || s.pattern}</div>
+                        <div className="font-medium text-zinc-900">{s.clauseHint || s.pattern || s.type}</div>
                         <div className="text-zinc-700 mt-1">{s.rationale || "Suggested edit"}</div>
                         <div className="mt-2 flex gap-2">
                           <Button size="sm" className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => acceptSuggestion(s)}>
@@ -268,7 +305,6 @@ export default function TermSheetEditor({ incomingSuggestion }) {
 }
 
 function AddCommentBox({ onAdd }) {
-  const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
 
   return (
@@ -282,7 +318,6 @@ function AddCommentBox({ onAdd }) {
             if (!note.trim()) return;
             onAdd(note.trim());
             setNote("");
-            setOpen(false);
           }}
         >
           <MessageSquarePlus size={16} className="mr-2" /> Add

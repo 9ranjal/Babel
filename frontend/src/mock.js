@@ -72,7 +72,7 @@ export function mockAIResponse(prompt) {
         "Liquidation Preference (1x non-participating) means investors get their investment back first, then remaining proceeds go to common shareholders. Non-participating = no double dip.",
     };
   }
-  if (lower.includes("redline") && lower.includes("discount")) {
+  if ((lower.includes("redline") || lower.includes("tighten")) && lower.includes("discount")) {
     return {
       role: "assistant",
       content:
@@ -87,11 +87,41 @@ export function mockAIResponse(prompt) {
       },
     };
   }
+  if ((lower.includes("add") || lower.includes("insert")) && lower.includes("liquidation")) {
+    return {
+      role: "assistant",
+      content:
+        "Added clarification to liquidation preference explaining order of payouts.",
+      suggestion: {
+        id: `s-${Date.now()}`,
+        type: "insert",
+        pattern: "Liquidation Preference: 1x non-participating.",
+        insertText:
+          " In any sale or liquidation event, holders shall receive their preference prior to any distribution to common shareholders.",
+        position: "after",
+        rationale: "Clarifies distribution waterfall.",
+        clauseHint: "4. Liquidation Preference",
+      },
+    };
+  }
+  if ((lower.includes("remove") || lower.includes("delete")) && lower.includes("pro rata")) {
+    return {
+      role: "assistant",
+      content: "Removed pro rata rights per your request (review signaling implications).",
+      suggestion: {
+        id: `s-${Date.now()}`,
+        type: "delete",
+        pattern: "Pro Rata Rights: Investors have pro rata rights in next round.",
+        rationale: "Simplifies cap table dynamics but may deter some investors.",
+        clauseHint: "5. Pro Rata Rights",
+      },
+    };
+  }
   // default friendly response
   return {
     role: "assistant",
     content:
-      "I can redline any clause. Try: ‘raise valuation cap to $12M’ or ‘explain liquidation preference’.",
+      "I can redline any clause. Try: ‘raise valuation cap to $12M’, ‘add liquidation preference detail’, or ‘remove pro rata rights’.",
   };
 }
 
@@ -100,7 +130,7 @@ export const defaultComments = [
     id: "c1",
     snippet: "1x non-participating",
     note: "Confirm investor expects non-participating, not participating preferred.",
-    anchorPattern: "Liquidation Preference: 1x non-participating",
+    anchorPattern: "Liquidation Preference: 1x non-participating.",
     ts: Date.now() - 1000 * 60 * 3,
   },
 ];
