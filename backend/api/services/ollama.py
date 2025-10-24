@@ -11,7 +11,7 @@ class OllamaClient:
     
     def __init__(self, base_url: str = "http://localhost:11434"):
         self.base_url = base_url
-        self.model = "qwen2.5:3b-instruct-q4_0"  # Default model, can be overridden
+        self.model = "phi3:medium"  # Using Phi3 medium model, can be overridden
     
     async def generate_response(
         self,
