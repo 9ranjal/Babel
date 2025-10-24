@@ -189,7 +189,7 @@ export default function CopilotChat({ onSuggestion, currentTransaction }) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-white/60 backdrop-blur-sm border-r border-zinc-200" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui' }}>
+    <div className="h-full flex flex-col bg-white/60 backdrop-blur-sm border-r border-zinc-200 min-h-0" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui' }}>
       <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-200 h-12">
         <div className="flex items-center gap-2">
           <MessageSquareText size={18} className="text-zinc-700" />
@@ -245,48 +245,29 @@ export default function CopilotChat({ onSuggestion, currentTransaction }) {
         </div>
       </div>
 
-      <div className="px-4 py-3 space-y-3 flex-1 overflow-y-auto min-h-0">
-        {/* Information Collection Pills */}
-        <div>
-          <h4 className="text-sm font-medium text-zinc-700 mb-2">Collect Information:</h4>
-          <div className="flex flex-wrap gap-2">
-            {infoCollectionPills.map((pill) => (
-              <Button
-                key={pill.id}
-                variant="outline"
-                className={`h-8 px-2 py-0 text-xs border ${pill.color} hover:opacity-80`}
-                onClick={() => setInput(pill.text)}
-              >
-                <pill.icon size={10} className="mr-1" /> {pill.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Prompts */}
-        <div>
-          <h4 className="text-sm font-medium text-zinc-700 mb-2">Quick Actions:</h4>
-          <div className="flex flex-wrap gap-2">
-            {quickPrompts.map((qp) => (
-              <Button
-                key={qp.id}
-                variant="secondary"
-                className="h-8 px-2 py-0 text-xs bg-zinc-100 hover:bg-zinc-200 text-zinc-800"
-                onClick={() => setInput(qp.text)}
-              >
-                <Wand2 size={14} className="mr-1" /> {qp.label}
-              </Button>
-            ))}
-          </div>
+      {/* Quick Actions - right below copilot bar */}
+      <div className="px-4 py-3 border-b border-zinc-200">
+        <div className="flex flex-wrap gap-2">
+          {quickPrompts.map((qp) => (
+            <Button
+              key={qp.id}
+              variant="secondary"
+              className="h-8 px-2 py-0 text-xs bg-zinc-100 hover:bg-zinc-200 text-zinc-800"
+              onClick={() => setInput(qp.text)}
+            >
+              <Wand2 size={14} className="mr-1" /> {qp.label}
+            </Button>
+          ))}
         </div>
       </div>
 
-      <div className="px-4 pb-12 space-y-3 flex flex-col">
+      {/* Chat content - scrollable with height constraint */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
         {chat.length === 0 ? (
-          <div className="flex flex-col items-center text-center text-zinc-500 pt-8">
-            <MessageSquareText size={40} className="mb-3 text-zinc-300" />
-            <h3 className="text-base font-medium text-zinc-700 mb-1.5">Welcome to Termcraft AI</h3>
-            <p className="text-xs mb-3 max-w-md">
+          <div className="flex flex-col items-center justify-center text-center text-zinc-500 pt-4">
+            <MessageSquareText size={32} className="mb-2 text-zinc-300" />
+            <h3 className="text-sm font-medium text-zinc-700 mb-1">Welcome to Termcraft AI</h3>
+            <p className="text-xs mb-2 max-w-md">
               I'm your VC lawyer copilot. I can help you with term sheet negotiations, 
               explain clauses, and collect information for generating term sheets.
             </p>
@@ -316,13 +297,16 @@ export default function CopilotChat({ onSuggestion, currentTransaction }) {
             ) : null}
           </>
         )}
-        
-        {/* Input Box - integrated into chat layout */}
-        <div className="mt-4 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input Box - separate component with padding */}
+      <div className="border-t border-zinc-200 bg-white">
+        <div className="p-6 pb-16">
           <div className="relative">
             <Textarea
               placeholder="Ask to redline or explain…"
-              className="min-h-[44px] max-h-32 resize-none pr-10 border-zinc-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg"
+              className="w-full min-h-[44px] max-h-32 resize-none pr-10 border-zinc-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
@@ -337,10 +321,7 @@ export default function CopilotChat({ onSuggestion, currentTransaction }) {
             </Button>
           </div>
         </div>
-        
-        <div ref={bottomRef} />
       </div>
-
     </div>
   );
 }
