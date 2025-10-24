@@ -16,6 +16,7 @@ from ..services.copilot_service import copilot_service
 from ..services.intent_handlers import IntentHandlerFactory
 from ..services.context_service import context_service
 from ..services.prompt_service import prompt_service
+from ..services.term_sheet_service import term_sheet_service
 
 router = APIRouter(prefix="/api/copilot", tags=["copilot-v2"])
 
@@ -183,20 +184,44 @@ async def test_ollama():
     try:
         from ..services.ollama import get_ollama_client
         client = get_ollama_client()
-        
+
         # Test basic connection
         response = await client.generate_response([
             {"role": "user", "content": "Hello, are you working?"}
         ], temperature=0.1)
-        
+
         return {
             "status": "success",
             "response": response,
             "message": "Ollama integration is working"
         }
-        
+
     except Exception as e:
         return {
             "status": "error",
             "message": f"Ollama integration failed: {str(e)}"
+        }
+
+
+@router.post("/generate-term-sheet")
+async def generate_term_sheet(data: dict):
+    """Generate term sheet from collected information"""
+    try:
+        # Validate and clean the data
+        validated_data = term_sheet_service.validate_data(data)
+        
+        # Generate the term sheet
+        term_sheet_content = term_sheet_service.generate_term_sheet(validated_data)
+        
+        return {
+            "status": "success",
+            "term_sheet": term_sheet_content,
+            "data": validated_data,
+            "message": "Term sheet generated successfully"
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Term sheet generation failed: {str(e)}"
         }

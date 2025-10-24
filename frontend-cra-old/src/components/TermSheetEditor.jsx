@@ -8,8 +8,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../com
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Separator } from "../components/ui/separator";
-import { Download, History, Check, X, MessageSquarePlus } from "lucide-react";
+import { Download, History, Check, X, MessageSquarePlus, FileText, Edit } from "lucide-react";
 import { loadInitialState, persistState } from "../mock";
+import { ChipCollection } from "./chips";
+import DynamicTermSheet from "./DynamicTermSheet";
 
 function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -45,11 +47,29 @@ export default function TermSheetEditor({ incomingSuggestion }) {
   const [versions, setVersions] = useState(init.versions);
   const [comments, setComments] = useState(init.comments);
   const [pending, setPending] = useState([]); // array of suggestions
-  const [tab, setTab] = useState("editor");
+  const [tab, setTab] = useState("info-collector");
+  const [termSheetData, setTermSheetData] = useState(null);
+  const [showInfoCollector, setShowInfoCollector] = useState(true);
+  const [informationState, setInformationState] = useState(null);
 
   useEffect(() => {
     persistState({ text, versions, comments });
   }, [text, versions, comments]);
+
+  const handleInformationUpdate = (state) => {
+    setInformationState(state);
+  };
+
+  const handleTermSheetReady = (data) => {
+    setTermSheetData(data);
+    setShowInfoCollector(false);
+    setTab("term-sheet");
+  };
+
+  const handleEditTerms = () => {
+    setShowInfoCollector(true);
+    setTab("info-collector");
+  };
 
   useEffect(() => {
     if (incomingSuggestion) {
@@ -174,12 +194,12 @@ export default function TermSheetEditor({ incomingSuggestion }) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-200 bg-white/70 backdrop-blur">
+      <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-200 bg-white/70 backdrop-blur h-12">
         <div className="flex items-center gap-3">
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="font-medium text-zinc-900"
+            className="font-medium text-zinc-900 h-8"
           />
           <Badge className="bg-zinc-100 text-zinc-700">Draft</Badge>
         </div>
@@ -187,33 +207,49 @@ export default function TermSheetEditor({ incomingSuggestion }) {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="secondary" className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800" onClick={exportMarkdown}>
-                  <Download size={16} className="mr-2" /> Export
+                <Button variant="secondary" size="sm" className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 h-8" onClick={exportMarkdown}>
+                  <Download size={14} className="mr-1" /> Export
                 </Button>
               </TooltipTrigger>
               <TooltipContent className="text-xs">Export current draft to Markdown (.md)</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
-          <Button variant="secondary" className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800" onClick={() => saveVersion("Manual save") }>
-            <History size={16} className="mr-2" /> Save Version
+          <Button variant="secondary" size="sm" className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 h-8" onClick={() => saveVersion("Manual save") }>
+            <History size={14} className="mr-1" /> Save
           </Button>
 
-          <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={acceptAll}>
-            <Check size={16} className="mr-2" /> Accept All
+          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8" onClick={acceptAll}>
+            <Check size={14} className="mr-1" /> Accept
           </Button>
-          <Button variant="destructive" onClick={() => setPending([])}>
-            <X size={16} className="mr-2" /> Reject All
+          <Button variant="destructive" size="sm" className="h-8" onClick={() => setPending([])}>
+            <X size={14} className="mr-1" /> Reject
           </Button>
         </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col">
         <TabsList className="px-2">
+          <TabsTrigger value="info-collector">Information</TabsTrigger>
+          <TabsTrigger value="term-sheet">Term Sheet</TabsTrigger>
           <TabsTrigger value="editor">Editor</TabsTrigger>
           <TabsTrigger value="versions">Version History</TabsTrigger>
           <TabsTrigger value="comments">Comments</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="info-collector" className="flex-1 overflow-auto">
+          <ChipCollection 
+            onInformationUpdate={handleInformationUpdate}
+            onTermSheetReady={handleTermSheetReady}
+          />
+        </TabsContent>
+
+        <TabsContent value="term-sheet" className="flex-1 overflow-hidden">
+          <DynamicTermSheet 
+            termSheetData={termSheetData}
+            onEdit={handleEditTerms}
+          />
+        </TabsContent>
 
         <TabsContent value="editor" className="flex-1 overflow-hidden">
           <div className="grid grid-cols-12 h-full">

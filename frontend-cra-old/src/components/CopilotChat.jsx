@@ -3,7 +3,7 @@ import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
-import { Send, Wand2, MessageSquareText, Info, Loader2 } from "lucide-react";
+import { Send, Wand2, MessageSquareText, Info, Loader2, Building2, Users, DollarSign, FileText, Trash2, Plus } from "lucide-react";
 import { loadInitialState, persistState } from "../mock";
 import { api } from "../lib/apiClient";
 
@@ -128,6 +128,40 @@ export default function CopilotChat({ onSuggestion, currentTransaction }) {
     []
   );
 
+  const infoCollectionPills = useMemo(
+    () => [
+      { 
+        id: "company_info", 
+        label: "Company Info", 
+        icon: Building2,
+        text: "I need to collect company information for the term sheet. What's your company name, industry, funding stage, and annual revenue?",
+        color: "bg-blue-50 text-blue-700 border-blue-200"
+      },
+      { 
+        id: "investor_info", 
+        label: "Investor Details", 
+        icon: Users,
+        text: "Tell me about your investors - who's the lead investor, what type of investor are they, and what's the investment amount and pre-money valuation?",
+        color: "bg-green-50 text-green-700 border-green-200"
+      },
+      { 
+        id: "deal_terms", 
+        label: "Deal Structure", 
+        icon: DollarSign,
+        text: "What are the key deal terms - equity percentage, liquidation preference, board composition, and anti-dilution protection?",
+        color: "bg-purple-50 text-purple-700 border-purple-200"
+      },
+      { 
+        id: "additional_terms", 
+        label: "Other Terms", 
+        icon: FileText,
+        text: "Any other important terms - exclusivity period, founder vesting schedule, drag-along and tag-along rights?",
+        color: "bg-orange-50 text-orange-700 border-orange-200"
+      },
+    ],
+    []
+  );
+
   const onKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -135,69 +169,178 @@ export default function CopilotChat({ onSuggestion, currentTransaction }) {
     }
   };
 
+  const clearChat = () => {
+    setChat([]);
+    setInput("");
+    // Clear persisted state
+    persistState({ chat: [] });
+  };
+
+  const startNewChat = () => {
+    clearChat();
+    // Optionally add a welcome message
+    const welcomeMsg = {
+      id: `a-${Date.now()}`,
+      role: "assistant",
+      content: "Hello! I'm your VC lawyer copilot. I can help you with term sheet negotiations, explain clauses, and collect information for generating term sheets. How can I assist you today?",
+      ts: Date.now()
+    };
+    setChat([welcomeMsg]);
+  };
+
   return (
     <div className="h-full flex flex-col bg-white/60 backdrop-blur-sm border-r border-zinc-200" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui' }}>
-      <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-200">
+      <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-200 h-12">
         <div className="flex items-center gap-2">
           <MessageSquareText size={18} className="text-zinc-700" />
           <div className="text-sm font-medium text-zinc-900">Copilot</div>
-          <Badge className="bg-indigo-50 text-indigo-700">GPT-4</Badge>
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger className="text-zinc-500">
-              <Info size={16} />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs text-xs">
-              AI responses are mocked in this preview. Backend and real LLM will be integrated next.
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-zinc-500 hover:text-zinc-700"
+                  onClick={startNewChat}
+                >
+                  <Plus size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Start New Chat</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-zinc-500 hover:text-zinc-700"
+                  onClick={clearChat}
+                >
+                  <Trash2 size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Clear Chat History</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger className="text-zinc-500">
+                <Info size={16} />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs">
+                AI responses are mocked in this preview. Backend and real LLM will be integrated next.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
-      <div className="px-4 py-3">
-        <div className="flex flex-wrap gap-2">
-          {quickPrompts.map((qp) => (
-            <Button
-              key={qp.id}
-              variant="secondary"
-              className="h-8 px-2 py-0 text-xs bg-zinc-100 hover:bg-zinc-200 text-zinc-800"
-              onClick={() => setInput(qp.text)}
-            >
-              <Wand2 size={14} className="mr-1" /> {qp.label}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex-1 px-4 overflow-auto space-y-3">
-        {chat.map((m) => (
-          <Message key={m.id} msg={m} />
-        ))}
-        {loading ? (
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <Loader2 size={14} className="animate-spin" /> Generating suggestion...
+      <div className="px-4 py-3 space-y-3 flex-1 overflow-y-auto min-h-0">
+        {/* Information Collection Pills */}
+        <div>
+          <h4 className="text-sm font-medium text-zinc-700 mb-2">Collect Information:</h4>
+          <div className="flex flex-wrap gap-2">
+            {infoCollectionPills.map((pill) => (
+              <Button
+                key={pill.id}
+                variant="outline"
+                className={`h-8 px-2 py-0 text-xs border ${pill.color} hover:opacity-80`}
+                onClick={() => setInput(pill.text)}
+              >
+                <pill.icon size={10} className="mr-1" /> {pill.label}
+              </Button>
+            ))}
           </div>
-        ) : null}
+        </div>
+
+        {/* Quick Prompts */}
+        <div>
+          <h4 className="text-sm font-medium text-zinc-700 mb-2">Quick Actions:</h4>
+          <div className="flex flex-wrap gap-2">
+            {quickPrompts.map((qp) => (
+              <Button
+                key={qp.id}
+                variant="secondary"
+                className="h-8 px-2 py-0 text-xs bg-zinc-100 hover:bg-zinc-200 text-zinc-800"
+                onClick={() => setInput(qp.text)}
+              >
+                <Wand2 size={14} className="mr-1" /> {qp.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 pb-12 space-y-3 flex flex-col">
+        {chat.length === 0 ? (
+          <div className="flex flex-col items-center text-center text-zinc-500 pt-8">
+            <MessageSquareText size={40} className="mb-3 text-zinc-300" />
+            <h3 className="text-base font-medium text-zinc-700 mb-1.5">Welcome to Termcraft AI</h3>
+            <p className="text-xs mb-3 max-w-md">
+              I'm your VC lawyer copilot. I can help you with term sheet negotiations, 
+              explain clauses, and collect information for generating term sheets.
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {infoCollectionPills.slice(0, 2).map((pill) => (
+                <Button
+                  key={pill.id}
+                  variant="outline"
+                  size="sm"
+                  className={`text-xs ${pill.color}`}
+                  onClick={() => setInput(pill.text)}
+                >
+                  <pill.icon size={12} className="mr-1" /> {pill.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            {chat.map((m) => (
+              <Message key={m.id} msg={m} />
+            ))}
+            {loading ? (
+              <div className="flex items-center gap-2 text-xs text-zinc-500">
+                <Loader2 size={14} className="animate-spin" /> Generating suggestion...
+              </div>
+            ) : null}
+          </>
+        )}
+        
+        {/* Input Box - integrated into chat layout */}
+        <div className="mt-4 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+          <div className="relative">
+            <Textarea
+              placeholder="Ask to redline or explain…"
+              className="min-h-[44px] max-h-32 resize-none pr-10 border-zinc-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+            />
+            <Button
+              onClick={send}
+              disabled={!input.trim() || loading}
+              size="icon"
+              className="absolute right-2 bottom-2 h-7 w-7 bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-400"
+            >
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            </Button>
+          </div>
+        </div>
+        
         <div ref={bottomRef} />
       </div>
 
-      <div className="p-3 border-t border-zinc-200">
-        <div className="bg-white rounded-lg border border-zinc-300 p-2 focus-within:ring-2 focus-within:ring-indigo-200">
-          <Textarea
-            placeholder="Ask to redline or explain… (Enter to send, Shift+Enter for newline)"
-            className="min-h-[60px] resize-none focus-visible:ring-0 focus:outline-none"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-          />
-          <div className="flex justify-end mt-2">
-            <Button onClick={send} disabled={!input.trim() || loading} className="bg-indigo-600 hover:bg-indigo-700">
-              {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />} Send
-            </Button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

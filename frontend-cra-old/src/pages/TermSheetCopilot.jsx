@@ -106,9 +106,6 @@ export default function TermSheetCopilot() {
           <Button variant="secondary" className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 h-8 px-3">
             <HelpCircle size={14} className="mr-1" /> Help
           </Button>
-          <Button className="bg-indigo-600 hover:bg-indigo-700 h-8 px-3">
-            <CreditCard size={14} className="mr-1" /> Buy Credits
-          </Button>
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-indigo-50 text-indigo-700 text-xs">TC</AvatarFallback>
           </Avatar>
