@@ -77,3 +77,4 @@ class ExclusivitySkill(BaseSkill):
             snippet_ids=snippet_ids
         )
 
+

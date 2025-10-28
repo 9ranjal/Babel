@@ -78,3 +78,4 @@ class VestingSkill(BaseSkill):
             snippet_ids=snippet_ids
         )
 
+

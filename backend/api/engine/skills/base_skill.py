@@ -109,3 +109,4 @@ class BaseSkill(ABC):
             return str(list(value.values())[0])
         return str(value)
 
+

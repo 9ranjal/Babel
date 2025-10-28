@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     OPENROUTER_SITE_URL: str = "http://localhost:3000"
     OPENROUTER_APP_NAME: str = "Termcraft AI"
 
+    # AI Service Configuration
+    PRIMARY_AI_SERVICE: str = "ollama"  # "ollama" or "openrouter"
+    
     FRONTEND_ORIGIN: str = "http://localhost:5003"
 
 settings = Settings()  # singleton import

@@ -6,7 +6,9 @@ from typing import Dict, Any, List, Optional
 from uuid import UUID
 from ..models.schemas import CopilotIntentRequest, CopilotIntentResponse
 from ..services.ollama import get_ollama_client
+from ..services.openrouter import get_openrouter_client
 from ..services.supabase import get_supabase_client
+from ..core.settings import settings
 from .prompt_service import prompt_service
 from .batna_aware_prompt_service import get_batna_aware_prompt_service
 
@@ -16,6 +18,7 @@ class CopilotService:
     
     def __init__(self):
         self.ollama = get_ollama_client()
+        self.openrouter = get_openrouter_client()
         self.batna_prompt_service = None  # Will be initialized with supabase client
     
     async def handle_general_chat(self, request: CopilotIntentRequest) -> CopilotIntentResponse:
@@ -233,13 +236,37 @@ Always tailor your advice to the specific transaction context and personas invol
 """
     
     async def _generate_ai_response(self, context: str, user_message: str) -> str:
-        """Generate AI response using Ollama"""
+        """Generate AI response with configurable primary service and fallback"""
         messages = [
             {"role": "system", "content": context},
             {"role": "user", "content": user_message}
         ]
         
-        return await self.ollama.generate_response(messages, temperature=0.7)
+        # Determine primary and fallback services based on configuration
+        if settings.PRIMARY_AI_SERVICE.lower() == "openrouter":
+            primary_service = self.openrouter
+            fallback_service = self.ollama
+            primary_name = "OpenRouter"
+            fallback_name = "Ollama"
+        else:
+            primary_service = self.ollama
+            fallback_service = self.openrouter
+            primary_name = "Ollama"
+            fallback_name = "OpenRouter"
+        
+        # Try primary service first
+        try:
+            return await primary_service.generate_response(messages, temperature=0.7)
+        except Exception as primary_error:
+            print(f"{primary_name} failed: {primary_error}, falling back to {fallback_name}...")
+            
+            # Fallback to secondary service
+            try:
+                return await fallback_service.generate_response(messages, temperature=0.7)
+            except Exception as fallback_error:
+                print(f"{fallback_name} also failed: {fallback_error}")
+                # Final fallback - return a helpful error message
+                return f"I apologize, but I'm having trouble connecting to my AI services right now. Please try again in a moment. ({primary_name}: {str(primary_error)[:100]}, {fallback_name}: {str(fallback_error)[:100]})"
 
 
 # Service instance

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/Button';
 import { ArrowRight } from 'lucide-react';
 
 export const LandingCTA: React.FC = () => {
-  const [hovered, setHovered] = useState<'left' | 'right' | null>(null);
+  const navigate = useNavigate();
+  const [hovered, setHovered] = useState<'left' | 'middle' | 'right' | null>(null);
 
   const baseStyles = {
     display: 'inline-flex',
@@ -38,7 +40,25 @@ export const LandingCTA: React.FC = () => {
           e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
         }}
       >
-        Generate Term Sheet
+        Chat
+      </button>
+      
+      <button
+        style={{
+          ...baseStyles,
+          marginLeft: '8px',
+          marginRight: '8px',
+          backgroundColor: hovered === 'middle' ? '#F0E68C' : 'transparent',
+          boxShadow: hovered === 'middle' ? '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' : '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          transform: hovered === 'middle' ? 'translateY(-3px) scale(1.05)' : 'translateY(0) scale(1)'
+        }}
+        onMouseEnter={() => setHovered('middle')}
+        onMouseLeave={() => setHovered(null)}
+        onMouseDown={(e) => {
+          e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
+        }}
+      >
+        Generate TS
       </button>
       
       <button
@@ -54,6 +74,7 @@ export const LandingCTA: React.FC = () => {
         onMouseDown={(e) => {
           e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
         }}
+        onClick={() => navigate('/faq')}
       >
         FAQ
       </button>
