@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useChatSessions } from '../hooks/useChatSessions';
+import { useChatSessionsContext } from '../hooks/ChatSessionsContext';
 
 interface TopBarRightProps {
   isLeftPanelCollapsed?: boolean;
@@ -22,7 +22,7 @@ const TopBarRight: React.FC<TopBarRightProps> = ({
   const [aanaeTooltipPos, setAanaeTooltipPos] = useState({ left: 0, top: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const aanaeButtonRef = useRef<HTMLButtonElement>(null);
-  const { createSession } = useChatSessions();
+  const { createSession } = useChatSessionsContext();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {

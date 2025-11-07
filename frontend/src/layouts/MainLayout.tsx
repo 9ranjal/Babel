@@ -7,6 +7,7 @@ import TopBarRight from '../components/TopBarRight';
 import ChatHistory from '../components/ChatHistory';
 import { ToastProvider } from '../hooks/useToast';
 import { ChatFoldersProvider } from '../hooks/useChatFolders';
+import { ChatSessionsProvider } from '../hooks/ChatSessionsContext';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -76,39 +77,41 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
           } as React.CSSProperties}
         >
           {/* Top bar with modular components */}
-          <div className="w-full h-[40px] md:h-[40px] flex items-center overflow-visible backdrop-blur-md border-b border-[color:var(--border)] topbar-gradient">
-            <TopBarRight 
-              isLeftPanelCollapsed={isLeftPanelCollapsed}
-              toggleLeftPanel={toggleLeftPanel}
-              activeModule={activeModule}
-            />
-            <TopBarCenter />
-            <TopBarLeft 
-              isLeftPanelCollapsed={isLeftPanelCollapsed}
-              toggleLeftPanel={toggleLeftPanel}
-              activeModule={activeModule}
-            />
-          </div>
-          
-          {/* Main Layout: 2-Column Resizable Layout */}
-          <div className="flex-1 overflow-hidden">
-            <ResizableLayout2Column
-              leftPanel={
-                <ChatHistory 
-                  onSelectChat={() => {}}
-                  currentModule={activeModule}
-                />
-              }
-              mainContent={
-                <main className="flex-1 flex flex-col h-full overflow-hidden main-content-gradient min-h-0 text-neutral-900">
-                  {children}
-                </main>
-              }
-              isLeftPanelCollapsed={isLeftPanelCollapsed}
-              toggleLeftPanel={toggleLeftPanel}
-              activeModule={activeModule}
-            />
-          </div>
+          <ChatSessionsProvider>
+            <div className="w-full h-[40px] md:h-[40px] flex items-center overflow-visible backdrop-blur-md border-b border-[color:var(--border)] topbar-gradient">
+              <TopBarRight 
+                isLeftPanelCollapsed={isLeftPanelCollapsed}
+                toggleLeftPanel={toggleLeftPanel}
+                activeModule={activeModule}
+              />
+              <TopBarCenter />
+              <TopBarLeft 
+                isLeftPanelCollapsed={isLeftPanelCollapsed}
+                toggleLeftPanel={toggleLeftPanel}
+                activeModule={activeModule}
+              />
+            </div>
+            
+            {/* Main Layout: 2-Column Resizable Layout */}
+            <div className="flex-1 overflow-hidden">
+              <ResizableLayout2Column
+                leftPanel={
+                  <ChatHistory 
+                    onSelectChat={() => {}}
+                    currentModule={activeModule}
+                  />
+                }
+                mainContent={
+                  <main className="flex-1 flex flex-col h-full overflow-hidden main-content-gradient min-h-0 text-neutral-900">
+                    {children}
+                  </main>
+                }
+                isLeftPanelCollapsed={isLeftPanelCollapsed}
+                toggleLeftPanel={toggleLeftPanel}
+                activeModule={activeModule}
+              />
+            </div>
+          </ChatSessionsProvider>
         </div>
       </ChatFoldersProvider>
     </ToastProvider>

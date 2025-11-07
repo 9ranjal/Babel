@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import ConfirmationModal from './ConfirmationModal';
 import { useToast } from '../hooks/useToast';
-import { useChatSessions } from '../hooks/useChatSessions';
+import { useChatSessionsContext } from '../hooks/ChatSessionsContext';
 import { useChatFolders } from '../hooks/useChatFolders';
 import ChatManagementModalEnhanced from './ChatManagementModalEnhanced';
 
@@ -14,7 +14,7 @@ interface ChatHistoryProps {
 }
 
 const ChatHistory: React.FC<ChatHistoryProps> = ({ onSelectChat, currentModule = 'search' }) => {
-  const { sessions, currentSession, selectSession, deleteSession, createSession, createFreshSession, updateSessionTitle } = useChatSessions();
+  const { sessions, currentSession, selectSession, deleteSession, createSession, createFreshSession, updateSessionTitle } = useChatSessionsContext();
   const { folders, createFolder, getChatFolder, renameFolder, deleteFolder } = useChatFolders();
   const { showSuccess, showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);

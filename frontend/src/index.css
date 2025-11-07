@@ -281,6 +281,28 @@ html, body {
   font-size: 11px;
   color: var(--ink-500);
 }
+
+/* Chat copy scale (more delicate like reference) */
+.chat-copy {
+  font-size: 14.5px;              /* slightly smaller than 16px */
+  line-height: 1.7;
+  color: var(--ink-900);
+  font-weight: 400;
+}
+.chat-copy p,
+.chat-copy li,
+.chat-copy td,
+.chat-copy th { font-size: inherit; line-height: inherit; }
+.chat-copy h1 { font-size: 18px; font-weight: 600; }
+.chat-copy h2 { font-size: 17px; font-weight: 600; }
+.chat-copy h3 { font-size: 16px; font-weight: 600; }
+.chat-copy h4,
+.chat-copy h5,
+.chat-copy h6 { font-size: 15px; font-weight: 600; }
+.chat-copy code { font-size: 13px; }
+
+/* Follow-up pill scale */
+.chat-pill { font-size: 13px; }
 .tutor-btn:hover {
   background: var(--panel-elev);
   transform: translateY(-1px);

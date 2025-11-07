@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { RotateCcw, ChevronDown } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import CitationCard from './CitationCard';
-import { useChatSessions } from '../hooks/useChatSessions';
+import { useChatSessionsContext } from '../hooks/ChatSessionsContext';
 import { parseSSE } from '../lib/sse';
 
 interface ChatInterfaceV2Props {
@@ -86,24 +86,24 @@ const Message: React.FC<{
           <div className={`flex-1 ${isUser ? 'text-right' : 'text-left'}`}>
             <div className={`inline-block p-4 rounded-2xl break-words ${
               isUser
-                ? 'bg-[#f0ede0] text-[#2b2c28]'
-                : 'bg-white/70 text-[#2b2c28] backdrop-blur-sm border border-[#e9e4d3]/60'
+                ? 'bg-[#f0ede0] text-[color:var(--ink-900)]'
+                : 'bg-white/70 text-[color:var(--ink-900)] backdrop-blur-sm border border-[#e9e4d3]/60'
             }`}>
               {isUser ? (
-                <div className="whitespace-pre-wrap text-left">
+                <div className="whitespace-pre-wrap text-left chat-copy">
                   {message.quoteText && (
                     <div className="mb-2 p-3 border border-[#d9d4c4]/30 rounded-md bg-[#f0ede0]/10">
                       {message.quoteTitle && (
                         <div className="text-xs text-blue-300 mb-1 truncate">{message.quoteTitle}</div>
                       )}
-                      <div className="text-sm text-neutral-200 whitespace-pre-wrap italic">{message.quoteText}</div>
+                      <div className="text-[13px] text-neutral-500 whitespace-pre-wrap italic leading-relaxed">{message.quoteText}</div>
                     </div>
                   )}
                   <div>{message.content}</div>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="prose max-w-none break-words overflow-wrap-anywhere text-[#2b2c28]">
+                  <div className="max-w-none break-words overflow-wrap-anywhere chat-copy">
                     <MarkdownRenderer 
                       content={message.content || ''}
                       citations={message.tutorResponse?.citations || earlyCitations || []}
@@ -174,14 +174,14 @@ const SuggestedQuestionsBubble: React.FC<{
     >
       <div className="flex items-start">
         <div className="flex-1">
-          <div className="inline-block p-4 rounded-2xl bg-gray-200/90 border border-gray-300/60">
-            <div className="text-gray-800 mb-3 flex items-center gap-2">
+          <div className="inline-block p-4 bg-gray-200/80 border border-gray-300/50 rounded-2xl">
+            <div className="text-gray-800 mb-2 flex items-center gap-2 chat-copy">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               Follow-up Questions
             </div>
-            <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 chat-pill">
               {tutorResponse.questions_next.map((question: any, index: number) => (
                 <motion.button
                   key={index}
@@ -207,7 +207,7 @@ const SuggestedQuestionsBubble: React.FC<{
 
 export default function ChatInterfaceV2({ module = 'search', isMain = true, contextData }: ChatInterfaceV2Props) {
   const isMainView = isMain;
-  const chatSessions = useChatSessions();
+  const chatSessions = useChatSessionsContext();
   const { currentSession, addMessage, createSession } = isMainView ? chatSessions : { 
     currentSession: null, 
     addMessage: () => {}, 
@@ -470,7 +470,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
     <div className="flex flex-col h-full relative copilot-ambient-bg">
       {/* Messages Area */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 pb-3 min-h-0 flex flex-col">
-        <div className="w-full max-w-4xl mx-auto flex flex-col" style={{ minHeight: '100%' }}>
+        <div className="w-full mx-auto flex flex-col" style={{ minHeight: '100%', maxWidth: 'min(1200px, 92vw)' }}>
         {/* New Chat control */}
         {messages.length > 0 && (
           <div className="flex justify-center gap-2 pt-3 pb-1.5">
@@ -691,7 +691,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
       {/* Input Area - Bottom composer only when chat has started */}
       {!isEmptyState && (
         <div className="p-4 sidebar-gradient">
-          <form onSubmit={handleFormSubmit} className="w-full max-w-4xl mx-auto">
+          <form onSubmit={handleFormSubmit} className="w-full mx-auto" style={{ maxWidth: 'min(1200px, 92vw)' }}>
             <AnimatePresence>
               {embeddedText && (
                 <NoteEmbedBlock
