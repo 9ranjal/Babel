@@ -24,6 +24,25 @@ if (isValidUrl(supabaseUrl) && typeof supabaseAnonKey === 'string' && supabaseAn
       async getSession() {
         return { data: { session: null } };
       },
+      onAuthStateChange(_callback: any) {
+        // Return a no-op subscription object
+        return {
+          data: {
+            subscription: {
+              unsubscribe: () => {}
+            }
+          }
+        };
+      },
+      async signInWithPassword(_credentials: any) {
+        return { error: { message: 'Supabase not configured' } };
+      },
+      async signUp(_credentials: any) {
+        return { error: { message: 'Supabase not configured' } };
+      },
+      async signOut(_options?: any) {
+        return { error: null };
+      },
     },
   };
 }

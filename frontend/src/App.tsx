@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import { FAQ, FAQsPage } from './pages/FAQ';
+import Chat from './pages/Chat';
 import { MarketingLayout } from './layouts/MarketingLayout';
 
 function App() {
@@ -8,6 +9,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/chat" element={<Chat />} />
         <Route
           path="/faq"
           element={

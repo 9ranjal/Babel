@@ -33,7 +33,7 @@ export const TitleSequence: React.FC<TitleSequenceProps> = ({ onComplete }) => {
     }
 
     // Timeline per spec:
-    // 1.2s: "Project Simple" fades in (2.86s duration)
+    // 1.2s: "Welcome to Babel" fades in (2.86s duration)
     // 4.0s: Fades out (1.56s duration)
     console.log('[TitleSequence] Starting animation at', new Date().toISOString());
     const t1 = setTimeout(() => {
@@ -62,7 +62,8 @@ export const TitleSequence: React.FC<TitleSequenceProps> = ({ onComplete }) => {
         inset: 0,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        pointerEvents: 'none'
       }}
     >
       <div style={{ textAlign: 'center' }}>
@@ -87,7 +88,7 @@ export const TitleSequence: React.FC<TitleSequenceProps> = ({ onComplete }) => {
                   whiteSpace: 'nowrap'
                 }}
               >
-                Project Simple
+                Welcome to Babel
               </motion.h1>
             )}
           </AnimatePresence>

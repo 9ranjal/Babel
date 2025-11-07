@@ -36,9 +36,9 @@ export const FAQsPage: React.FC = () => {
 
   const faqs = [
     {
-      question: 'What is Project Simple?',
+      question: 'What is Babel?',
       answer:
-        "**Project Simple** is the ***consensus layer for venture capital***. It brings founders and investors onto a shared platform to align faster and close deals seamlessly.\n\nWe're building the infrastructure for trust in **VC negotiations** through **Consensus as a Service (CaaS)**.",
+        "**Babel** is the ***consensus layer for venture capital***. It brings founders and investors onto a shared platform to align faster and close deals seamlessly.\n\nWe're building the infrastructure for trust in **VC negotiations** through **Consensus as a Service (CaaS)**.",
     },
     {
       question: 'What is Consensus as a Service (CaaS)?',

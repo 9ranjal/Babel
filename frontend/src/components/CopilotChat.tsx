@@ -176,7 +176,7 @@ export default function CopilotChat({
         {chat.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center text-zinc-500 pt-4">
             <MessageSquareText size={32} className="mb-2 text-zinc-300" />
-            <h3 className="text-sm font-medium text-zinc-700 mb-1">Welcome to Project Simple AI</h3>
+            <h3 className="text-sm font-medium text-zinc-700 mb-1">Welcome to Babel AI</h3>
             <p className="text-xs mb-2 max-w-md">
               I'm your VC lawyer copilot. I can help you with term sheet negotiations 
               and explain clauses.
