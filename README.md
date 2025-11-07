@@ -1,10 +1,10 @@
-# 🚀 Termcraft AI - VC Lawyer Copilot & Negotiation Engine
+# 🚀 Babel AI - VC Lawyer Copilot & Negotiation Engine
 
 A sophisticated AI-powered negotiation engine with an intelligent VC lawyer copilot that provides data-driven advice based on actual BATNA (Best Alternative To Negotiated Agreement) analysis. Built with FastAPI, React, and Supabase.
 
 ## 🎯 **Overview**
 
-Termcraft AI combines a **transaction-first negotiation engine** with an **intelligent VC lawyer copilot** that provides personalized, data-driven advice. The system uses real persona leverage, BATNA bands, and market data to generate intelligent responses rather than generic guidance.
+Babel AI combines a **transaction-first negotiation engine** with an **intelligent VC lawyer copilot** that provides personalized, data-driven advice. The system uses real persona leverage, BATNA bands, and market data to generate intelligent responses rather than generic guidance.
 
 ### **Key Features**
 - **🧠 Intelligent VC Lawyer Copilot**: BATNA-aware AI that provides personalized advice
@@ -88,7 +88,7 @@ pip install -r requirements.txt
 export SUPABASE_URL="your_supabase_url"
 export SUPABASE_SERVICE_ROLE_KEY="your_service_role_key"
 export OPENROUTER_API_KEY="your-openrouter-key"  # Optional
-export OPENROUTER_MODEL="meta-llama/llama-3.3-8b-instruct:free"
+export OPENROUTER_MODEL="deepseek/deepseek-chat-v3.1"
 
 # Start backend
 python -m uvicorn api.main:app --host 0.0.0.0 --port 5002 --reload
@@ -356,7 +356,7 @@ curl -X POST http://localhost:8000/api/transactions \
 │       ├── setup_backend.sh
 │       ├── start_backend_5001.sh
 │       ├── start_frontend_5000.sh
-│       └── start_termcraft.sh
+│       └── start_babel.sh
 ├── config/                           # Configuration
 │   ├── package.json
 │   └── package-lock.json

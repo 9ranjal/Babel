@@ -4,7 +4,6 @@ import { RotateCcw, ChevronDown } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import CitationCard from './CitationCard';
 import { useChatSessionsContext } from '../hooks/ChatSessionsContext';
-import { parseSSE } from '../lib/sse';
 
 interface ChatInterfaceV2Props {
   module?: 'quiz' | 'notes' | 'flashcards' | 'search' | 'learn';
@@ -81,7 +80,7 @@ const Message: React.FC<{
       transition={{ duration: 0.4, ease: "easeOut" }}
       className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}
     >
-      <div className={`max-w-[95%] ${isUser ? 'order-2' : 'order-1'}`}>
+      <div className={`${isUser ? 'order-2' : 'order-1'} w-full`}>
         <div className={`flex items-start ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
           <div className={`flex-1 ${isUser ? 'text-right' : 'text-left'}`}>
             <div className={`inline-block p-4 rounded-2xl break-words ${
@@ -305,24 +304,21 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
     setEarlyCitations([]);
 
     try {
+      const history = (currentSession?.messages || []).slice(-10).map(msg => ({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: msg.content || ''
+      }));
+
       const requestBody = {
-        input: content,
-        module: module,
-        contextData: contextData || null,
-        tutorMode: 'chat',
-        chat_history: (currentSession?.messages || []).slice(-10).map(msg => ({
-          sender: msg.role || 'user',
-          content: msg.content || '',
-          timestamp: msg.timestamp || new Date().toISOString()
-        })),
+        message: content.trim(),
+        history
       };
 
-      const response = await fetch(`${API_BASE}/api/copilot/stream`, {
+      const response = await fetch(`${API_BASE}/api/copilot/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify(requestBody),
       });
 
@@ -330,72 +326,23 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      let accumulatedContent = '';
-      let citationsReceived = false;
+      const data = await response.json();
+      const finalContent = data?.message ?? '';
 
-      for await (const evt of parseSSE(response)) {
-        const type = (evt as any).type;
-        
-        if (type === 'phase') {
-          const phase = (evt as any).phase as string | undefined;
-          const meta = (evt as any).meta as any | undefined;
-          setCurrentPhase(phase || null);
-          setPhaseMeta(meta || null);
-          if (phase === 'followups') setIsGeneratingFollowups(true);
-          if (phase === 'followups_ready') setIsGeneratingFollowups(false);
-          if (phase === 'planning_ready' && meta?.bullets && Array.isArray(meta.bullets)) {
-            setPlanningPreview((meta.bullets as string[]).slice(0, 5));
-          }
-          if (phase === 'drafting' && planningPreview.length > 0) {
-            // keep preview visible briefly while drafting; do not clear here
-          }
-        }
-        
-        if (type === 'citations_ready' && (evt as any).citations) {
-          setEarlyCitations((evt as any).citations);
-          citationsReceived = true;
-        }
-        
-        if (type === 'chunk' && (evt as any).chunk) {
-          accumulatedContent += (evt as any).chunk;
-          setStreamingMessage(accumulatedContent);
-        } else if (type === 'tutor_response') {
-          const tutorData = (evt as any).data;
-          const finalContent = accumulatedContent || tutorData?.answer || '';
-          
-          if (isMainView && currentSession) {
-            addMessage(currentSession.id, {
-              role: 'assistant',
-              content: finalContent,
-              tutorResponse: tutorData
-            });
-          }
-          
-          setStreamingMessage('');
-          setIsLoading(false);
-          setCurrentPhase(null);
-          setPhaseMeta(null);
-          setPlanningPreview([]);
-          setIsGeneratingFollowups(false);
-          processingMessageRef.current = false;
-          break;
-        } else if (type === 'error') {
-          const errMsg = (evt as any).error || 'Unknown error';
-          if (isMainView && currentSession) {
-            addMessage(currentSession.id, {
-              role: 'assistant',
-              content: `❌ Error: ${errMsg}`
-            });
-          }
-          setStreamingMessage('');
-          setIsLoading(false);
-          setPhaseMeta(null);
-          setPlanningPreview([]);
-          setIsGeneratingFollowups(false);
-          processingMessageRef.current = false;
-          break;
-        }
+      if (isMainView && currentSession) {
+        addMessage(currentSession.id, {
+          role: 'assistant',
+          content: finalContent
+        });
       }
+
+      setStreamingMessage('');
+      setIsLoading(false);
+      setCurrentPhase(null);
+      setPhaseMeta(null);
+      setPlanningPreview([]);
+      setIsGeneratingFollowups(false);
+      processingMessageRef.current = false;
     } catch (err) {
       console.error('Chat error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -409,7 +356,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
       setIsLoading(false);
       processingMessageRef.current = false;
     }
-  }, [currentSession, addMessage, module, contextData, isLoading, API_BASE, isMainView]);
+  }, [currentSession, addMessage, isLoading, API_BASE, isMainView]);
 
   const handleFollowUpQuestion = useCallback((question: string) => {
     if (!isLoading) {
@@ -469,8 +416,8 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
   return (
     <div className="flex flex-col h-full relative copilot-ambient-bg">
       {/* Messages Area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 pb-3 min-h-0 flex flex-col">
-        <div className="w-full mx-auto flex flex-col" style={{ minHeight: '100%', maxWidth: 'min(1200px, 92vw)' }}>
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 pb-4 min-h-0 flex flex-col">
+        <div className="flex flex-col flex-1 w-full" style={{ minHeight: '100%' }}>
         {/* New Chat control */}
         {messages.length > 0 && (
           <div className="flex justify-center gap-2 pt-3 pb-1.5">
@@ -691,7 +638,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
       {/* Input Area - Bottom composer only when chat has started */}
       {!isEmptyState && (
         <div className="p-4 sidebar-gradient">
-          <form onSubmit={handleFormSubmit} className="w-full mx-auto" style={{ maxWidth: 'min(1200px, 92vw)' }}>
+          <form onSubmit={handleFormSubmit} className="w-full mx-auto" style={{ maxWidth: 'min(1320px, 95vw)' }}>
             <AnimatePresence>
               {embeddedText && (
                 <NoteEmbedBlock

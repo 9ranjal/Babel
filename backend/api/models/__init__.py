@@ -1,5 +1,5 @@
 """
-Data models and schemas for Termcraft AI
+Data models and schemas for Babel AI
 """
 
 

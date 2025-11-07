@@ -1,5 +1,5 @@
 -- ============================================================================
--- Termcraft AI - Seed Data
+-- Babel AI - Seed Data
 -- Migration: 002_seed_data.sql
 -- Description: Inserts initial clause library and market benchmarks
 -- ============================================================================

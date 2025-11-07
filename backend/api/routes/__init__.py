@@ -1,5 +1,5 @@
 """
-API routes for Termcraft AI
+API routes for Babel AI
 """
 
 

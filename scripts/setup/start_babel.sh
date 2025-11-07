@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# TermCraft AI - Complete Startup Script
+# Babel AI - Complete Startup Script
 # Starts both backend (port 5001) and frontend (port 5000)
 
-echo "🚀 Starting TermCraft AI Application..."
+echo "🚀 Starting Babel AI Application..."
 echo "================================================"
 
 # Check if Ollama is running
@@ -47,7 +47,7 @@ npm run dev &
 FRONTEND_PID=$!
 
 echo ""
-echo "✅ TermCraft AI is now running!"
+echo "✅ Babel AI is now running!"
 echo "================================================"
 echo "🌐 Frontend: http://localhost:5003"
 echo "🔧 Backend:  http://localhost:5002"
@@ -58,7 +58,7 @@ echo "Press Ctrl+C to stop all services"
 # Function to cleanup on exit
 cleanup() {
     echo ""
-    echo "🛑 Stopping TermCraft AI services..."
+    echo "🛑 Stopping Babel AI services..."
     kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
     echo "✅ All services stopped"
     exit 0

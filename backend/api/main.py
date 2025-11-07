@@ -1,39 +1,32 @@
-# api/main.py
+"""FastAPI entrypoint for the lean copilot backend."""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.core.settings import settings
-from api.routes.negotiate import router as negotiate_router
-from api.routes.personas import router as personas_router
-from api.routes.copilot import router as copilot_router
-from api.routes.copilot_v2 import router as copilot_v2_router
-from api.routes.transactions import router as transactions_router
-from api.routes.migrate import router as migrate_router
 
-app = FastAPI(title="Termcraft API")
+from api.core.settings import settings
+from api.routes.copilot import router as copilot_router
+
+app = FastAPI(title="Babel Copilot API")
+
+frontend_origins = [origin.strip() for origin in settings.FRONTEND_ORIGIN.split(",") if origin.strip()]
+if not frontend_origins:
+    frontend_origins = ["http://localhost:3000"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
-    allow_credentials=False,
+    allow_origins=list({*frontend_origins}),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(personas_router)
-app.include_router(negotiate_router)
-app.include_router(copilot_router)  # Legacy copilot routes
-app.include_router(copilot_v2_router)  # New modular copilot routes
-app.include_router(transactions_router)
-app.include_router(migrate_router)
+app.include_router(copilot_router)
+
 
 @app.get("/")
-def root():
-    return {"ok": True, "name": "termcraft-api"}
+async def root():
+    return {"ok": True, "name": "babel-copilot"}
+
 
 @app.get("/status")
-def status():
+async def status():
     return {"status": "healthy"}
-
-
-

@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This directory contains SQL migrations for the Termcraft AI database schema.
+This directory contains SQL migrations for the Babel AI database schema.
 
 ## 🚀 Quick Start - Running Migrations
 

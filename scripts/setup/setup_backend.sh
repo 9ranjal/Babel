@@ -1,7 +1,7 @@
 #!/bin/bash
-# Backend Setup Script for Termcraft AI
+# Backend Setup Script for Babel AI
 
-echo "🚀 Setting up Termcraft AI Backend..."
+echo "🚀 Setting up Babel AI Backend..."
 echo ""
 
 cd "$(dirname "$0")/backend"

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Termcraft AI - Initial Database Schema
+-- Babel AI - Initial Database Schema
 -- Migration: 001_initial_schema.sql
 -- Description: Creates all core tables for persona-driven negotiation system
 -- ============================================================================

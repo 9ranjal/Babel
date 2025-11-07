@@ -1,5 +1,0 @@
-"""
-Termcraft AI Negotiation Engine
-"""
-
-

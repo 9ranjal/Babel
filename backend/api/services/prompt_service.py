@@ -120,8 +120,21 @@ Be conversational, authoritative, and practical.
         """Get the base VC lawyer identity and expertise"""
         return f"{self.BASE_VC_LAWYER_IDENTITY}\n{self.EXPERTISE_AREAS}\n{self.RESPONSE_STYLE}"
     
-    def get_general_chat_prompt(self, request, personas: List[Dict[str, Any]]) -> str:
-        """Build comprehensive prompt for general chat"""
+    def get_general_chat_prompt(self, request_or_message, personas: Optional[List[Dict[str, Any]]] = None) -> str:
+        """Build prompt for general chat interactions.
+
+        Accepts either a CopilotIntentRequest (with persona context) or a raw
+        user message string for lightweight use cases.
+        """
+        if isinstance(request_or_message, str):
+            user_message = request_or_message
+            return self.get_intent_prompt(
+                "general_chat",
+                user_message=user_message
+            )
+
+        request = request_or_message
+        personas = personas or []
         return f"""
 {self.BASE_VC_LAWYER_IDENTITY}
 
@@ -166,13 +179,6 @@ TRANSACTION CONTEXT:
         return self.get_intent_prompt(
             "simulate_trade",
             clause_key=clause_key or "clause",
-            user_message=user_message
-        )
-    
-    def get_general_chat_prompt(self, user_message: str) -> str:
-        """Get prompt for general chat"""
-        return self.get_intent_prompt(
-            "general_chat",
             user_message=user_message
         )
     

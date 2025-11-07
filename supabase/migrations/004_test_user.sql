@@ -8,7 +8,7 @@
 INSERT INTO public.users (user_id, email, created_at)
 VALUES (
   '00000000-0000-0000-0000-000000000000'::uuid,
-  'test@termcraft.dev',
+  'test@babel.dev',
   NOW()
 )
 ON CONFLICT (user_id) DO NOTHING;
