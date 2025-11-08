@@ -1,0 +1,10 @@
+
+> aidem-frontend@0.2.0 dev
+> vite --port 3000
+
+
+  VITE v6.4.1  ready in 100 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: use --host to expose
+2:45:03 PM [vite] (client) hmr update /src/components/ChatInterfaceV2.tsx, /src/index.css

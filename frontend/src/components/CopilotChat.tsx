@@ -2,8 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from './ui/Button';
 import { Textarea } from './ui/Textarea';
 import { Badge } from './ui/Badge';
-import { Send, Wand2, MessageSquareText, Loader2, Building2 } from 'lucide-react';
+import { Send, Wand2, MessageSquareText, Loader2, Building2, Upload as UploadIcon } from 'lucide-react';
 import { api } from '../lib/apiClient';
+import { upload as uploadDocument, getDocument, listClauses } from '../lib/api';
+import { useDocStore } from '../lib/store';
+import { useToast } from '../hooks/useToast';
 import type { Message, Transaction, CopilotResponse } from '../types';
 
 interface MessageDisplayProps {
@@ -55,7 +58,11 @@ export default function CopilotChat({
   const [chat, setChat] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { showSuccess, showError } = useToast();
 
   const sessionId = useMemo(() => {
     return `session_${Date.now()}`;
@@ -152,6 +159,39 @@ export default function CopilotChat({
     }
   };
 
+  const triggerUpload = () => {
+    if (uploading) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { setDocId, setSelected, setDocument, setClauses } = useDocStore.getState();
+      const { document_id } = await uploadDocument(file);
+      showSuccess('Upload started', 'Parsing term sheet…');
+      const [doc, clauses] = await Promise.all([
+        getDocument(document_id),
+        listClauses(document_id),
+      ]);
+      setDocId(document_id);
+      setDocument(doc);
+      setClauses(clauses);
+      if (clauses.length > 0) {
+        setSelected(clauses[0].id);
+      }
+      showSuccess('Upload complete', 'Clauses extracted and ready.');
+    } catch (err: any) {
+      console.error('Upload failed', err);
+      showError('Upload failed', err?.message || 'Unable to process file');
+    } finally {
+      event.target.value = '';
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-white/60 backdrop-blur-sm min-h-0" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui' }}>
       {/* Quick Actions */}
@@ -208,10 +248,31 @@ export default function CopilotChat({
       {/* Input Box */}
       <div className="border-t border-zinc-200 bg-white">
         <div className="p-6 pb-16">
-          <div className="relative">
+          <div className="flex items-end gap-3">
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileSelected}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={triggerUpload}
+                disabled={uploading}
+                className="flex items-center gap-2"
+              >
+                {uploading ? <Loader2 size={14} className="animate-spin" /> : <UploadIcon size={16} />}
+                Upload Term Sheet
+              </Button>
+            </div>
+            <div className="relative flex-1">
             <Textarea
               placeholder="Ask to redline or explain…"
-              className="w-full min-h-[44px] max-h-32 resize-none pr-10"
+                className="w-full min-h-[44px] max-h-32 resize-none pr-12"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -220,10 +281,11 @@ export default function CopilotChat({
               onClick={send}
               disabled={!input.trim() || loading}
               size="icon"
-              className="absolute right-2 bottom-2 h-7 w-7 bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-400"
+                className="absolute right-2 bottom-2 h-8 w-8 bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-400"
             >
-              {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </Button>
+            </div>
           </div>
         </div>
       </div>

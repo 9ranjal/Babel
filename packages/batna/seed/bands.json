@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "clauses": [
+    {
+      "clause_key": "exclusivity",
+      "title": "Exclusivity / No‑Shop",
+      "attributes": { "unit": "days" },
+      "bands": [
+        { "name": "short",  "range": [15, 30], "founder_score": 1.0, "investor_score": 0.2, "rationale": "Founder flexibility" },
+        { "name": "market", "range": [30, 45], "founder_score": 0.6, "investor_score": 0.6, "rationale": "Balanced" },
+        { "name": "long",   "range": [45, 60], "founder_score": 0.2, "investor_score": 1.0, "rationale": "Investor diligence window" }
+      ],
+      "trades": [
+        { "give": "shorter exclusivity", "for": ["weekly diligence updates", "confirmatory DD only"] }
+      ],
+      "links": ["rofo", "rofr", "tag", "drag"]
+    }
+  ]
+}
+
+

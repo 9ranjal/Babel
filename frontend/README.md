@@ -17,14 +17,16 @@ npm install
 yarn install
 ```
 
-2. **Set up environment variables:**
+2. **(Optional) Set up environment variables:**
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and add your backend URL and Supabase credentials:
+By default, the Vite dev server proxies `/api/*` to the backend on `http://localhost:5002`, so you can skip configuring an API URL for local development. Add values only when pointing at a different backend or hosted Supabase project:
 ```env
-VITE_API_BASE=http://localhost:5002
+# Only required if you are NOT using the built-in dev proxy
+VITE_API_BASE=https://your-api-host.example.com
+
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
@@ -36,7 +38,7 @@ npm run dev
 yarn dev
 ```
 
-The app will be available at `http://localhost:3000`
+The app will be available at `http://localhost:3000` and forwards `/api/*` calls to `http://localhost:5002`.
 
 ## 📁 Project Structure
 

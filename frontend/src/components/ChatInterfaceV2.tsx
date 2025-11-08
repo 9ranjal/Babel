@@ -1,9 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCcw, ChevronDown } from 'lucide-react';
+import { RotateCcw, ChevronDown, Upload as UploadIcon, Loader2 } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import CitationCard from './CitationCard';
 import { useChatSessionsContext } from '../hooks/ChatSessionsContext';
+import { upload as uploadDocument, getDocument, listClauses } from '../lib/api';
+import { useDocStore } from '../lib/store';
+import { resolveApiUrl } from '../lib/config';
+import { useToast } from '../hooks/useToast';
 
 interface ChatInterfaceV2Props {
   module?: 'quiz' | 'notes' | 'flashcards' | 'search' | 'learn';
@@ -224,10 +228,14 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
   const [earlyCitations, setEarlyCitations] = useState<any[]>([]);
   const [embeddedText, setEmbeddedText] = useState<string | null>(null);
   const [embeddedTitle, setEmbeddedTitle] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const processingMessageRef = useRef<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { showSuccess, showError } = useToast();
 
   // Create session on mount if needed
   useEffect(() => {
@@ -284,8 +292,6 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
 
   // (Removed) Command suggestions feature
 
-  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5002';
-
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading || processingMessageRef.current) return;
     
@@ -314,7 +320,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
         history
       };
 
-      const response = await fetch(`${API_BASE}/api/copilot/chat`, {
+      const response = await fetch(resolveApiUrl('/copilot/chat'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -328,21 +334,21 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
 
       const data = await response.json();
       const finalContent = data?.message ?? '';
-
-      if (isMainView && currentSession) {
-        addMessage(currentSession.id, {
-          role: 'assistant',
+          
+          if (isMainView && currentSession) {
+            addMessage(currentSession.id, {
+              role: 'assistant',
           content: finalContent
-        });
-      }
-
-      setStreamingMessage('');
-      setIsLoading(false);
-      setCurrentPhase(null);
-      setPhaseMeta(null);
-      setPlanningPreview([]);
-      setIsGeneratingFollowups(false);
-      processingMessageRef.current = false;
+            });
+          }
+          
+          setStreamingMessage('');
+          setIsLoading(false);
+          setCurrentPhase(null);
+          setPhaseMeta(null);
+          setPlanningPreview([]);
+          setIsGeneratingFollowups(false);
+          processingMessageRef.current = false;
     } catch (err) {
       console.error('Chat error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -356,7 +362,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
       setIsLoading(false);
       processingMessageRef.current = false;
     }
-  }, [currentSession, addMessage, isLoading, API_BASE, isMainView]);
+  }, [currentSession, addMessage, isLoading, isMainView]);
 
   const handleFollowUpQuestion = useCallback((question: string) => {
     if (!isLoading) {
@@ -379,6 +385,40 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleFormSubmit(e as any);
+    }
+  };
+
+  const triggerUpload = () => {
+    if (!uploading) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { setDocId, setSelected, setDocument, setClauses } = useDocStore.getState();
+      const { document_id } = await uploadDocument(file);
+      showSuccess('Upload started', 'Parsing term sheet…');
+      const [doc, clauses] = await Promise.all([
+        getDocument(document_id),
+        listClauses(document_id),
+      ]);
+      setDocId(document_id);
+      setDocument(doc);
+      setClauses(clauses);
+      if (clauses.length > 0) {
+        setSelected(clauses[0].id);
+      }
+      showSuccess('Upload complete', 'Clauses extracted and ready.');
+    } catch (err: any) {
+      console.error('Upload failed', err);
+      showError('Upload failed', err?.message || 'Unable to process file');
+    } finally {
+      event.target.value = '';
+      setUploading(false);
     }
   };
 
@@ -415,6 +455,13 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
 
   return (
     <div className="flex flex-col h-full relative copilot-ambient-bg">
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept=".pdf,.doc,.docx"
+        onChange={handleFileSelected}
+      />
       {/* Messages Area */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 pb-4 min-h-0 flex flex-col">
         <div className="flex flex-col flex-1 w-full" style={{ minHeight: '100%' }}>
@@ -506,6 +553,15 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
                             style={{ height: 'auto' }}
                           />
                           <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={triggerUpload}
+                              disabled={uploading}
+                              className="bg-transparent border border-[#d9d4c4]/60 hover:bg-[#f0ede0] text-[#2b2c28] px-3 py-2 rounded-md transition-colors flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadIcon className="w-4 h-4" />}
+                              <span className="text-sm">Upload</span>
+                            </button>
                             <button
                               type="submit"
                               disabled={!input.trim() || isLoading}
@@ -666,6 +722,15 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
                   style={{ height: 'auto' }}
                 />
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={triggerUpload}
+                    disabled={uploading}
+                    className="bg-transparent border border-[#d9d4c4]/60 hover:bg-[#f0ede0] text-[#2b2c28] px-2.5 py-2 rounded-md transition-colors flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadIcon className="w-4 h-4" />}
+                    <span className="text-sm">Upload</span>
+                  </button>
                   <button
                     type="submit"
                     disabled={!input.trim() || isLoading}

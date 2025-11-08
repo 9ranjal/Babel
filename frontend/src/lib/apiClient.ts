@@ -1,9 +1,13 @@
 import axios from 'axios';
+import { API_BASE_URL } from './config';
 import { supabase } from './supabase';
 
-const baseURL = import.meta.env.VITE_API_BASE || 'http://localhost:5002';
+const baseURL = API_BASE_URL || undefined;
 
-export const api = axios.create({ baseURL, withCredentials: false });
+export const api = axios.create({
+  baseURL,
+  withCredentials: false,
+});
 
 api.interceptors.request.use(async (config) => {
   try {
