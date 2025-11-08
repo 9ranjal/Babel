@@ -236,6 +236,11 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { showSuccess, showError } = useToast();
+  const setDocId = useDocStore((s) => s.setDocId);
+  const setDocument = useDocStore((s) => s.setDocument);
+  const setClauses = useDocStore((s) => s.setClauses);
+  const setSelected = useDocStore((s) => s.setSelected);
+  const clearAnalyses = useDocStore((s) => s.clearAnalyses);
 
   // Create session on mount if needed
   useEffect(() => {
@@ -399,13 +404,13 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
     if (!file) return;
     setUploading(true);
     try {
-      const { setDocId, setSelected, setDocument, setClauses } = useDocStore.getState();
       const { document_id } = await uploadDocument(file);
       showSuccess('Upload started', 'Parsing term sheet…');
       const [doc, clauses] = await Promise.all([
         getDocument(document_id),
         listClauses(document_id),
       ]);
+      clearAnalyses();
       setDocId(document_id);
       setDocument(doc);
       setClauses(clauses);

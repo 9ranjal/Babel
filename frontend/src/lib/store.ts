@@ -1,29 +1,38 @@
-import { create } from 'zustand'
+import { create } from 'zustand';
 
-type State = {
-  docId?: string
-  selectedClauseId?: string
-  setDocId: (id?: string) => void
-  setSelected: (id?: string) => void
-  document?: any
-  setDocument: (doc?: any) => void
-  clauses: any[]
-  setClauses: (clauses: any[]) => void
-  analyses: Record<string, any>
-  setAnalysis: (clauseId: string, a: any) => void
-}
+type DocumentState = {
+  docId?: string;
+  document?: any;
+  clauses: any[];
+  analyses: Record<string, any>;
+  selectedClauseId?: string;
+  setDocId: (id?: string) => void;
+  setDocument: (doc?: any) => void;
+  setClauses: (clauses: any[]) => void;
+  setAnalysis: (clauseId: string, analysis: any) => void;
+  clearAnalyses: () => void;
+  setSelected: (id?: string) => void;
+  reset: () => void;
+};
 
-export const useDocStore = create<State>((set) => ({
+const defaultState = {
   docId: undefined,
-  selectedClauseId: undefined,
-  setDocId: (id) => set({ docId: id }),
-  setSelected: (id) => set({ selectedClauseId: id }),
   document: undefined,
-  setDocument: (doc) => set({ document: doc }),
-  clauses: [],
+  clauses: [] as any[],
+  analyses: {} as Record<string, any>,
+  selectedClauseId: undefined,
+};
+
+export const useDocStore = create<DocumentState>((set) => ({
+  ...defaultState,
+  setDocId: (docId) => set({ docId }),
+  setDocument: (document) => set({ document }),
   setClauses: (clauses) => set({ clauses }),
-  analyses: {},
-  setAnalysis: (clauseId, a) => set((s) => ({ analyses: { ...s.analyses, [clauseId]: a } })),
-}))
+  setAnalysis: (clauseId, analysis) =>
+    set((state) => ({ analyses: { ...state.analyses, [clauseId]: analysis } })),
+  clearAnalyses: () => set({ analyses: {} }),
+  setSelected: (selectedClauseId) => set({ selectedClauseId }),
+  reset: () => set({ ...defaultState }),
+}));
 
 

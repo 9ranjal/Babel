@@ -51,62 +51,77 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             />
           ),
           p: ({ children, ...props }) => {
-            const processChildren = (children: React.ReactNode): React.ReactNode => {
-              if (typeof children === 'string') {
-                const parts = children.split(/(\[[S]?\d+(?:\]\[[S]?\d+)*\])/g);
-                
-                return parts.map((part, index) => {
-                  const citationMatch = part.match(/^\[([S]?\d+(?:\]\[[S]?\d+)*)\]$/);
-                  
-                  if (citationMatch) {
-                    const citationNumbers = part.match(/[S]?(\d+)/g) || [];
-                    return citationNumbers.map((num, idx) => {
-                      const citationIndex = parseInt(num) - 1;
-                      const citation = safeCitations[citationIndex];
-                      
-                      if (citation) {
-                        const siteName = citation.domain ? citation.domain.replace('www.', '').split('.')[0] : `Source ${num}`;
-                        return (
-                          <span 
-                            key={`${index}-${idx}-${citationIndex}`}
-                            className="citation-pill-v2"
-                            style={{
-                              backgroundColor: '#F0E68C',
-                              color: '#1f2937',
-                              padding: '0.375rem 1rem',
-                              borderRadius: '9999px',
-                              fontSize: '0.75rem',
-                              fontWeight: '500',
-                              cursor: 'pointer',
-                              display: 'inline-block',
-                              transition: 'all 0.2s ease',
-                              marginLeft: '0.25rem',
-                              marginRight: '0.25rem'
-                            }}
-                          >
-                            {siteName}
-                          </span>
-                        );
-                      } else {
-                        return <span key={`${index}-${idx}`} className="text-gray-600">[{num}]</span>;
-                      }
-                    });
-                  } else {
-                    return part;
-                  }
-                });
-              }
-              
-              if (Array.isArray(children)) {
-                return children.map((child, index) => (
-                  <span key={index}>{processChildren(child)}</span>
-                ));
-              }
-              
-              return children;
+            const childArray = React.Children.toArray(children);
+
+            const renderTextWithCitations = (text: string, baseKey: string) => {
+              const parts = text.split(/(\[[S]?\d+(?:\]\[[S]?\d+)*\])/g);
+              return parts.map((part, index) => {
+                const citationMatch = part.match(/^\[([S]?\d+(?:\]\[[S]?\d+)*)\]$/);
+                if (citationMatch) {
+                  const citationNumbers = part.match(/[S]?(\d+)/g) || [];
+                  return citationNumbers.map((num, idx) => {
+                    const citationIndex = parseInt(num.replace('S', ''), 10) - 1;
+                    const citation = safeCitations[citationIndex];
+                    if (citation) {
+                      const siteName = citation.domain ? citation.domain.replace('www.', '').split('.')[0] : `Source ${num}`;
+                      return (
+                        <span
+                          key={`${baseKey}-${index}-${idx}-${citationIndex}`}
+                          className="citation-pill-v2"
+                          style={{
+                            backgroundColor: '#F0E68C',
+                            color: '#1f2937',
+                            padding: '0.375rem 1rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            display: 'inline-block',
+                            transition: 'all 0.2s ease',
+                            marginLeft: '0.25rem',
+                            marginRight: '0.25rem',
+                          }}
+                        >
+                          {siteName}
+                        </span>
+                      );
+                    }
+                    return (
+                      <span key={`${baseKey}-${index}-${idx}`} className="text-gray-600">
+                        [{num}]
+                      </span>
+                    );
+                  });
+                }
+                return part;
+              });
             };
-            
-            return <p className="mb-3 leading-relaxed text-[#2b2c28]" {...props}>{processChildren(children)}</p>;
+
+            const hasBlockChild = childArray.some((child) => {
+              if (!React.isValidElement(child)) return false;
+              const blockTags = ['pre', 'div', 'table', 'ul', 'ol', 'blockquote', 'code'];
+              const tag = typeof child.type === 'string' ? child.type : undefined;
+              return tag ? blockTags.includes(tag) : false;
+            });
+
+            const renderedChildren = childArray.map((child, index) => {
+              if (typeof child === 'string') {
+                return (
+                  <React.Fragment key={`text-${index}`}>
+                    {renderTextWithCitations(child, `text-${index}`)}
+                  </React.Fragment>
+                );
+              }
+              return child;
+            });
+
+            const Wrapper = hasBlockChild ? 'div' : 'p';
+
+            return (
+              <Wrapper className="mb-3 leading-relaxed text-[#2b2c28]" {...props}>
+                {renderedChildren}
+              </Wrapper>
+            );
           },
           h1: ({ children }) => (
             <h1 className="text-2xl font-bold mb-4 text-[#2b2c28]">{children}</h1>

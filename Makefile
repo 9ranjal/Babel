@@ -1,4 +1,29 @@
 SHELL := /bin/bash
+.ONESHELL:
+
+ROOT_DIR := $(abspath .)
+BACKEND_DIR := $(ROOT_DIR)/backend
+FRONTEND_DIR := $(ROOT_DIR)/frontend
+
+.PHONY: backend frontend dev
+
+backend:
+	cd "$(BACKEND_DIR)"
+	if [ -f "venv/bin/activate" ]; then \
+		. venv/bin/activate; \
+	fi; \
+	PYTHONPATH="$(BACKEND_DIR)" uvicorn api.main:app --reload --port 5002
+
+frontend:
+	npm --prefix "$(FRONTEND_DIR)" run dev -- --port 3000
+
+dev:
+	@set -euo pipefail
+	@trap 'kill 0' EXIT
+	@$(MAKE) --no-print-directory backend &
+	@$(MAKE) --no-print-directory frontend &
+	@wait
+SHELL := /bin/bash
 PROJECT_ROOT := /Users/pranjalsingh/Project\ Simple
 BACKEND_PORT := 5002
 FRONTEND_PORT := 5003

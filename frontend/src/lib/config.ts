@@ -1,6 +1,8 @@
 const rawBase =
-  import.meta.env.VITE_API_URL ??
-  import.meta.env.VITE_API_BASE ??
+  (typeof window !== 'undefined' &&
+    (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env?.VITE_API_URL) ??
+  (typeof window !== 'undefined' &&
+    (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env?.VITE_API_BASE) ??
   '';
 
 const normalizedBase =
@@ -8,12 +10,11 @@ const normalizedBase =
     ? rawBase.replace(/\/$/, '')
     : '';
 
-export const API_BASE_URL = normalizedBase;
-export const API_PREFIX = normalizedBase ? '' : '/api';
+export const API_BASE_URL = normalizedBase || '/api';
 
 export const resolveApiUrl = (path: string): string => {
   const safePath = path.startsWith('/') ? path : `/${path}`;
-  return `${API_BASE_URL}${API_PREFIX}${safePath}`;
+  return `${API_BASE_URL}${safePath}`;
 };
 
 

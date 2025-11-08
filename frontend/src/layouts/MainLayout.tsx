@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
-import ResizableLayout2Column from '../components/ResizableLayout2Column';
+import ChatHistory from '../components/ChatHistory';
 import TopBarCenter from '../components/TopBarCenter';
 import TopBarLeft from '../components/TopBarLeft';
 import TopBarRight from '../components/TopBarRight';
-import ChatHistory from '../components/ChatHistory';
 import { ToastProvider } from '../hooks/useToast';
 import { ChatFoldersProvider } from '../hooks/useChatFolders';
 import { ChatSessionsProvider } from '../hooks/ChatSessionsContext';
+import { ViewerPane } from '../components/Viewer/ViewerPane';
+import { useDocStore } from '../lib/store';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -19,6 +20,8 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
   const [devicePixelRatio, setDevicePixelRatio] = useState<number>(1);
   const [browserZoom, setBrowserZoom] = useState<number>(1);
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+  const docId = useDocStore((s) => s.docId);
+  const document = useDocStore((s) => s.document);
 
   const toggleLeftPanel = () => {
     setIsLeftPanelCollapsed(!isLeftPanelCollapsed);
@@ -92,24 +95,37 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
               />
             </div>
             
-            {/* Main Layout: 2-Column Resizable Layout */}
+            {/* Main Layout: History + Chat + Viewer */}
             <div className="flex-1 overflow-hidden">
-              <ResizableLayout2Column
-                leftPanel={
-                  <ChatHistory 
-                    onSelectChat={() => {}}
-                    currentModule={activeModule}
-                  />
-                }
-                mainContent={
-                  <main className="flex-1 flex flex-col h-full overflow-hidden main-content-gradient min-h-0 text-neutral-900">
-                    {children}
-                  </main>
-                }
-                isLeftPanelCollapsed={isLeftPanelCollapsed}
-                toggleLeftPanel={toggleLeftPanel}
-                activeModule={activeModule}
-              />
+              <div
+                className={`h-full grid ${
+                  document
+                    ? isLeftPanelCollapsed
+                      ? 'grid-cols-[minmax(360px,1fr)_minmax(520px,1.2fr)]'
+                      : 'grid-cols-[minmax(204px,238px)_minmax(360px,1fr)_minmax(520px,1.2fr)]'
+                    : isLeftPanelCollapsed
+                    ? 'grid-cols-1'
+                    : 'grid-cols-[minmax(204px,238px)_minmax(360px,1fr)]'
+                }`}
+              >
+                {!isLeftPanelCollapsed && (
+                  <aside className="border-r border-[color:var(--border)] overflow-hidden bg-white/70 backdrop-blur flex flex-col">
+                    <ChatHistory onSelectChat={() => {}} currentModule={activeModule} />
+                  </aside>
+                )}
+                <section
+                  className={`overflow-hidden main-content-gradient text-neutral-900 ${
+                    document ? 'border-r border-[color:var(--border)]' : ''
+                  }`}
+                >
+                  <div className="h-full flex flex-col">{children}</div>
+                </section>
+                {document ? (
+                  <section className="overflow-hidden bg-white/80 backdrop-blur">
+                    <ViewerPane key={docId || 'empty'} />
+                  </section>
+                ) : null}
+              </div>
             </div>
           </ChatSessionsProvider>
         </div>
