@@ -1,44 +1,44 @@
 #!/bin/bash
-# Backend Setup Script for Babel AI
+# Backend Setup Script for Babel AI (consolidated virtualenv)
 
-echo "🚀 Setting up Babel AI Backend..."
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+echo "🚀 Setting up Babel AI backend inside project virtual environment..."
 echo ""
 
-cd "$(dirname "$0")/backend"
+cd "$PROJECT_ROOT"
 
-# Remove old venv if it exists
-if [ -d "venv" ]; then
-    echo "📦 Removing old virtual environment..."
-    rm -rf venv
+# Ensure only the project-level virtual environment exists
+if [ -d "backend/venv" ]; then
+    echo "🧹 Removing legacy backend/venv virtual environment..."
+    rm -rf backend/venv
 fi
 
-# Create new venv
-echo "📦 Creating virtual environment..."
-python3 -m venv venv
+if [ ! -d ".venv" ]; then
+    echo "📦 Creating project virtual environment at .venv ..."
+    python3 -m venv .venv
+else
+    echo "✅ Reusing existing project virtual environment (.venv)"
+fi
 
-# Activate venv
-echo "✅ Activating virtual environment..."
-source venv/bin/activate
+echo "🔌 Activating .venv ..."
+source .venv/bin/activate
 
-# Upgrade pip
-echo "📦 Upgrading pip..."
-pip3 install --upgrade pip
+echo "⬆️  Upgrading pip ..."
+python -m pip install --upgrade pip
 
-# Install dependencies
-echo "📦 Installing dependencies..."
-pip3 install fastapi uvicorn[standard] supabase pydantic python-dotenv pydantic-settings
-
-# Verify installation
-echo ""
-echo "✅ Verifying installation..."
-python3 -c "import fastapi, uvicorn, supabase; print('✅ All packages installed successfully!')"
+echo "📦 Installing backend requirements ..."
+python -m pip install -r backend/requirements.txt
 
 echo ""
-echo "🎉 Backend setup complete!"
+echo "✅ Backend setup complete inside .venv!"
 echo ""
 echo "To start the backend server:"
-echo "  cd backend"
-echo "  source venv/bin/activate"
-echo "  uvicorn api.main:app --reload --port 8000"
+echo "  cd \"$PROJECT_ROOT\""
+echo "  source .venv/bin/activate"
+echo "  PYTHONPATH=backend uvicorn api.main:app --reload --host 0.0.0.0 --port 5002"
 echo ""
 

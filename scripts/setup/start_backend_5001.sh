@@ -5,10 +5,10 @@ echo "🚀 Starting TermCraft Backend on port 5002..."
 
 cd /Users/pranjalsingh/Project\ Simple/backend
 
-# Activate virtual environment if it exists
-if [ -d "venv" ]; then
+# Activate project virtual environment if it exists
+if [ -f "../.venv/bin/activate" ]; then
     echo "📦 Activating virtual environment..."
-    source venv/bin/activate
+    source ../.venv/bin/activate
 fi
 
 # Start the FastAPI server

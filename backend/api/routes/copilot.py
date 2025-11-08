@@ -21,7 +21,7 @@ class ChatResponse(BaseModel):
     message: str
 
 
-router = APIRouter(prefix="/api/copilot", tags=["copilot"])
+router = APIRouter(prefix="/copilot", tags=["copilot"])
 
 
 @router.post("/chat", response_model=ChatResponse)

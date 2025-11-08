@@ -68,18 +68,21 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
     snippets = regex_extract(parsed.get("text_plain", ""))
     normalized = normalize_snippets(snippets)
 
-    S = get_sessionmaker()
-    async with S() as session:  # type: AsyncSession
-        await _insert_document(session, document_id, demo_user, file.filename, content_type, blob_path, parsed)
-        clause_ids = await _insert_clauses(session, document_id, normalized)
-        # Build graph
-        clause_nodes = [
-            {"id": cid, "title": s.get("title"), "clause_key": s.get("clause_key")}
-            for cid, s in zip(clause_ids, normalized)
-        ]
-        graph = build_graph(document_id, clause_nodes)
-        await _update_graph(session, document_id, graph)
-        await session.commit()
+    try:
+        S = get_sessionmaker()
+        async with S() as session:  # type: AsyncSession
+            await _insert_document(session, document_id, demo_user, file.filename, content_type, blob_path, parsed)
+            clause_ids = await _insert_clauses(session, document_id, normalized)
+            # Build graph
+            clause_nodes = [
+                {"id": cid, "title": s.get("title"), "clause_key": s.get("clause_key")}
+                for cid, s in zip(clause_ids, normalized)
+            ]
+            graph = build_graph(document_id, clause_nodes)
+            await _update_graph(session, document_id, graph)
+            await session.commit()
+    except Exception as exc:  # surface as JSON error for the client
+        raise HTTPException(status_code=500, detail=f"Failed to save document: {exc}") from exc
 
     return {"document_id": document_id}
 

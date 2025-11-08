@@ -79,10 +79,10 @@ Frontend (React + TypeScript) ←→ Backend (FastAPI + Python) ←→ Database 
 
 ### **2. Backend Setup**
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+cd /Users/pranjalsingh/Project\ Simple
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r backend/requirements.txt
 
 # Set environment variables
 export SUPABASE_URL="your_supabase_url"
@@ -91,7 +91,7 @@ export OPENROUTER_API_KEY="your-openrouter-key"  # Optional
 export OPENROUTER_MODEL="deepseek/deepseek-chat-v3.1"
 
 # Start backend
-python -m uvicorn api.main:app --host 0.0.0.0 --port 5002 --reload
+PYTHONPATH=backend uvicorn api.main:app --host 0.0.0.0 --port 5002 --reload
 ```
 
 ### **3. Frontend Setup**
@@ -370,9 +370,9 @@ curl -X POST http://localhost:8000/api/transactions \
 
 ### **Backend Development**
 ```bash
-cd backend
-source venv/bin/activate
-uvicorn api.main:app --reload --port 8000
+cd /Users/pranjalsingh/Project\ Simple
+source .venv/bin/activate
+PYTHONPATH=backend uvicorn api.main:app --reload --port 5002
 ```
 
 ### **Frontend Development**

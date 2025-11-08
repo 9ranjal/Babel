@@ -9,8 +9,8 @@ FRONTEND_DIR := $(ROOT_DIR)/frontend
 
 backend:
 	cd "$(BACKEND_DIR)"
-	if [ -f "venv/bin/activate" ]; then \
-		. venv/bin/activate; \
+	if [ -f "../.venv/bin/activate" ]; then \
+		. ../.venv/bin/activate; \
 	fi; \
 	PYTHONPATH="$(BACKEND_DIR)" uvicorn api.main:app --reload --port 5002
 
@@ -60,6 +60,7 @@ kill-frontend:
 start-backend:
 	@echo "Starting backend on port $(BACKEND_PORT)..."
 	@cd $(PROJECT_ROOT) && \
+		. .venv/bin/activate && \
 		PYTHONPATH=backend $(UVICORN) api.main:app --reload --host 0.0.0.0 --port $(BACKEND_PORT) > backend.log 2>&1 &
 	@echo " - backend logs: $$(pwd)/backend.log"
 

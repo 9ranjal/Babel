@@ -34,10 +34,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(copilot_router)
-app.include_router(upload_router)
-app.include_router(documents_router)
-app.include_router(clauses_router)
+app.include_router(copilot_router, prefix="/api")
+app.include_router(upload_router, prefix="/api")
+app.include_router(documents_router, prefix="/api")
+app.include_router(clauses_router, prefix="/api")
 
 
 @app.get("/")
