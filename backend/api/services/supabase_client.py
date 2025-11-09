@@ -78,3 +78,17 @@ async def upload_file(bucket: str, path: str, bytes_content: bytes, content_type
             resp.raise_for_status()
 
 
+async def download_file(bucket: str, path: str) -> bytes:
+    supabase_url = _supabase_url()
+    service_role_key = _service_role_key()
+    url = f"{supabase_url}/storage/v1/object/{bucket}/{path}"
+    headers = {
+        "Authorization": f"Bearer {service_role_key}",
+        "apikey": service_role_key,
+    }
+    async with httpx.AsyncClient(timeout=None) as client:
+        resp = await client.get(url, headers=headers)
+        resp.raise_for_status()
+        return resp.content
+
+

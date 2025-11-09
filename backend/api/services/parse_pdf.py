@@ -21,13 +21,28 @@ def build_html_with_spans(paragraphs: List[str]) -> str:
 
 
 def parse_pdf_bytes(file_bytes: bytes) -> Dict:
-    text = extract_text(io.BytesIO(file_bytes)) or ""
-    paragraphs = _paragraphs_from_text(text)
-    html = build_html_with_spans(paragraphs)
+    """
+    Robust PDF parsing with graceful fallback. If pdfminer fails (e.g., bytes
+    aren't a valid PDF stream), produce a plaintext-based single-page HTML so
+    the pipeline can continue deterministically.
+    """
+    text: str = ""
+    try:
+        text = extract_text(io.BytesIO(file_bytes)) or ""
+    except Exception:
+        # Fallback: decode bytes as text (best-effort) to avoid hard failure
+        try:
+            text = file_bytes.decode("utf-8", errors="ignore")
+        except Exception:
+            text = ""
+
+    paragraphs = _paragraphs_from_text(text) if text else []
+    # If no paragraphs could be derived, wrap raw text in <pre> as a last resort
+    if not paragraphs and text:
+        html = f"<div class=\"page\"><pre>{text}</pre></div>"
+    else:
+        html = build_html_with_spans(paragraphs)
     pages_json = {"pages": [{"index": 0, "html": html}]}
-    return {
-        "text_plain": text,
-        "pages_json": pages_json,
-    }
+    return {"text_plain": text, "pages_json": pages_json}
 
 

@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .band_map import load_bands, find_clause_band_spec, pick_band
+from .extract_regex import extract_attributes
 
 
 async def analyze_clause(
@@ -19,9 +20,15 @@ async def analyze_clause(
 ) -> Dict[str, Any]:
     bands_data = load_bands()
     spec = find_clause_band_spec(bands_data, clause_key or "") if clause_key else None
+    # Derive attributes deterministically from stored clause text
+    derived_attrs = extract_attributes(clause_text or "")
     band = None
     if spec:
-        band = pick_band(spec.get("bands", []), attributes or {}, leverage or {"investor": 0.6, "founder": 0.4})
+        band = pick_band(
+            spec.get("bands", []),
+            derived_attrs or {},
+            leverage or {"investor": 0.6, "founder": 0.4},
+        )
 
     band_name = band.get("name") if band else None
     band_score = (
@@ -41,7 +48,7 @@ async def analyze_clause(
 
     inputs_json = {
         "clause_key": clause_key,
-        "attributes": attributes or {},
+        "attributes": derived_attrs or {},
         "leverage": leverage or {"investor": 0.6, "founder": 0.4},
         "band_hint": band,
     }

@@ -5,7 +5,7 @@ ROOT_DIR := $(abspath .)
 BACKEND_DIR := $(ROOT_DIR)/backend
 FRONTEND_DIR := $(ROOT_DIR)/frontend
 
-.PHONY: backend frontend dev
+.PHONY: backend frontend runner dev
 
 backend:
 	cd "$(BACKEND_DIR)"
@@ -13,6 +13,13 @@ backend:
 		. ../.venv/bin/activate; \
 	fi; \
 	PYTHONPATH="$(BACKEND_DIR)" uvicorn api.main:app --reload --port 5002
+
+runner:
+	cd "$(BACKEND_DIR)"
+	if [ -f "../.venv/bin/activate" ]; then \
+		. ../.venv/bin/activate; \
+	fi; \
+	PYTHONPATH="$(BACKEND_DIR)" python -m api.workers.runner
 
 frontend:
 	npm --prefix "$(FRONTEND_DIR)" run dev -- --port 3000

@@ -22,6 +22,7 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const docId = useDocStore((s) => s.docId);
   const document = useDocStore((s) => s.document);
+  const isUploading = useDocStore((s) => s.isUploading);
 
   const toggleLeftPanel = () => {
     setIsLeftPanelCollapsed(!isLeftPanelCollapsed);
@@ -99,7 +100,7 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
             <div className="flex-1 overflow-hidden">
               <div
                 className={`h-full grid ${
-                  document
+                  document || isUploading
                     ? isLeftPanelCollapsed
                       ? 'grid-cols-[minmax(360px,1fr)_minmax(520px,1.2fr)]'
                       : 'grid-cols-[minmax(204px,238px)_minmax(360px,1fr)_minmax(520px,1.2fr)]'
@@ -115,14 +116,14 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
                 )}
                 <section
                   className={`overflow-hidden main-content-gradient text-neutral-900 ${
-                    document ? 'border-r border-[color:var(--border)]' : ''
+                    document || isUploading ? 'border-r border-[color:var(--border)]' : ''
                   }`}
                 >
                   <div className="h-full flex flex-col">{children}</div>
                 </section>
-                {document ? (
+                {(document || isUploading) ? (
                   <section className="overflow-hidden bg-white/80 backdrop-blur">
-                    <ViewerPane key={docId || 'empty'} />
+                    <ViewerPane key={docId || 'uploading'} />
                   </section>
                 ) : null}
               </div>

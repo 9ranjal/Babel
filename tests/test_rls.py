@@ -1,16 +1,17 @@
 import os
+import asyncio
 import pytest
 import httpx
 
 
-@pytest.mark.asyncio
-async def test_rls_visibility():
+def test_rls_visibility():
     url = os.getenv("SUPABASE_URL")
     anon = os.getenv("SUPABASE_ANON_KEY")
     service = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not anon or not service:
         pytest.skip("Supabase env not configured for RLS test")
 
+    async def _run():
     # Using REST admin to insert two docs for two users
     bucket = f"{url}/rest/v1/documents"
     headers_admin = {"apikey": service, "Authorization": f"Bearer {service}", "Content-Type": "application/json"}
@@ -34,5 +35,7 @@ async def test_rls_visibility():
         r.raise_for_status()
         rows = r.json()
         assert len(rows) >= 2
+
+    asyncio.run(_run())
 
 

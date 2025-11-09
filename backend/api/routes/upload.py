@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import hashlib
 import uuid
 from pathlib import Path
 from typing import Any
@@ -13,11 +14,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import bindparam
 
 from api.core.settings import get_demo_user_id
-from api.services.parse_pdf import parse_pdf_bytes
-from api.services.parse_docx import parse_docx_bytes
-from api.services.extract_regex import regex_extract
-from api.services.extract_llm import normalize_snippets
-from api.services.build_graph import build_graph
 from api.services.supabase_client import get_sessionmaker, upload_file
 
 
@@ -45,66 +41,69 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
     if not (is_pdf or is_docx):
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    demo_user = get_demo_user_id()
-    document_id = str(uuid.uuid4())
-    blob_path = f"documents/{demo_user}/{document_id}/{file.filename}"
+    # Size cap: 25 MB
+    if len(content) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (25MB max)")
 
-    # Upload to Supabase Storage (dev fallback errors surface as 500 with guidance)
+    checksum = hashlib.sha256(content).hexdigest()
+    demo_user = get_demo_user_id()
+
+    # Short-circuit on (user_id, checksum)
+    S = get_sessionmaker()
+    async with S() as session:  # type: AsyncSession
+        existing = await session.execute(
+            text(
+                """
+                select id from public.documents
+                where user_id = :uid and checksum = :cs
+                limit 1
+                """
+            ),
+            {"uid": demo_user, "cs": checksum},
+        )
+        row = existing.mappings().first()
+        if row:
+            return {"document_id": row["id"]}
+
+    # If new, create document row and upload blob, then enqueue PARSE_DOC
+    document_id = str(uuid.uuid4())
+    blob_path = f"{demo_user}/{document_id}/{file.filename}"
     try:
         await upload_file("documents", blob_path, content, content_type)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=f"Storage not configured: {exc}") from exc
 
-    # Parse to HTML/text
-    try:
-        if is_pdf and not is_docx:
-            parsed = parse_pdf_bytes(content)
-        else:
-            parsed = parse_docx_bytes(content)
-    except Exception as exc:  # pragma: no cover - surface friendly error to client
-        raise HTTPException(status_code=400, detail=f"Failed to parse document: {exc}") from exc
-
-    # Extract clauses
-    snippets = regex_extract(parsed.get("text_plain", ""))
-    normalized = normalize_snippets(snippets)
-
-    try:
-        S = get_sessionmaker()
-        async with S() as session:  # type: AsyncSession
-            await _insert_document(session, document_id, demo_user, file.filename, content_type, blob_path, parsed)
-            clause_ids = await _insert_clauses(session, document_id, normalized)
-            # Build graph
-            clause_nodes = [
-                {"id": cid, "title": s.get("title"), "clause_key": s.get("clause_key")}
-                for cid, s in zip(clause_ids, normalized)
-            ]
-            graph = build_graph(document_id, clause_nodes)
-            await _update_graph(session, document_id, graph)
-            await session.commit()
-    except Exception as exc:  # surface as JSON error for the client
-        raise HTTPException(status_code=500, detail=f"Failed to save document: {exc}") from exc
+    async with S() as session:  # type: AsyncSession
+        await _insert_document_min(session, document_id, demo_user, file.filename, content_type, blob_path, checksum)
+        await _enqueue_job(
+            session,
+            job_type="PARSE_DOC",
+            document_id=document_id,
+            payload={"mime": content_type, "blob_path": blob_path},
+            idempotency_key=f"parse::{document_id}::{checksum}",
+        )
+        await session.commit()
 
     return {"document_id": document_id}
 
 
-async def _insert_document(
+async def _insert_document_min(
     session: AsyncSession,
     document_id: str,
     user_id: str,
     filename: str,
     mime: str,
     blob_path: str,
-    parsed: dict,
+    checksum: str,
 ) -> None:
     q = (
         text(
             """
-            insert into public.documents (id, user_id, filename, mime, blob_path, text_plain, pages_json)
-            values (:id, :user_id, :filename, :mime, :blob_path, :text_plain, :pages_json)
+            insert into public.documents (id, user_id, filename, mime, blob_path, checksum, status)
+            values (:id, :user_id, :filename, :mime, :blob_path, :checksum, 'uploaded')
             on conflict (id) do nothing
             """
         )
-        .bindparams(bindparam("pages_json", type_=JSONB))
     )
     await session.execute(
         q,
@@ -114,44 +113,36 @@ async def _insert_document(
             "filename": filename,
             "mime": mime,
             "blob_path": blob_path,
-            "text_plain": parsed.get("text_plain", ""),
-            "pages_json": parsed.get("pages_json", {}),
+            "checksum": checksum,
         },
     )
 
 
-async def _insert_clauses(session: AsyncSession, document_id: str, normalized: list[dict]) -> list[str]:
-    ids: list[str] = []
-    for s in normalized:
-        cid = str(uuid.uuid4())
-        ids.append(cid)
-        q = text(
-            """
-            insert into public.clauses (id, document_id, clause_key, title, text, start_idx, end_idx, page_hint)
-            values (:id, :document_id, :clause_key, :title, :text, :start_idx, :end_idx, :page_hint)
-            """
-        )
-        await session.execute(
-            q,
-            {
-                "id": cid,
-                "document_id": document_id,
-                "clause_key": s.get("clause_key"),
-                "title": s.get("title"),
-                "text": s.get("text"),
-                "start_idx": s.get("start_idx"),
-                "end_idx": s.get("end_idx"),
-                "page_hint": s.get("page_hint"),
-            },
-        )
-    return ids
+async def _enqueue_job(
+    session: AsyncSession,
+    job_type: str,
+    document_id: str | None,
+    payload: dict[str, Any],
+    idempotency_key: str | None = None,
+) -> None:
+    import json
 
-
-async def _update_graph(session: AsyncSession, document_id: str, graph: dict) -> None:
-    q = (
-        text("update public.documents set graph_json = :g where id = :id")
-        .bindparams(bindparam("g", type_=JSONB))
+    payload_serializable = json.loads(json.dumps(payload, default=str))
+    q = text(
+        """
+        insert into public.jobs (type, document_id, payload, idempotency_key, status)
+        values (:type, :document_id, :payload, :idem, 'queued')
+        on conflict (idempotency_key) do nothing
+        """
+    ).bindparams(bindparam("payload", type_=JSONB))
+    await session.execute(
+        q,
+        {
+            "type": job_type,
+            "document_id": document_id,
+            "payload": payload_serializable,
+            "idem": idempotency_key,
+        },
     )
-    await session.execute(q, {"g": graph, "id": document_id})
 
 

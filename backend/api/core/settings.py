@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # Dev-only: single demo user scope
     DEMO_USER_ID: str = "00000000-0000-0000-0000-000000000001"
 
+    # Embeddings/worker flags
+    EMBEDDINGS_ENABLED: bool = True
+    JOB_POLL_INTERVAL_MS: int = 500
+
 
 settings = Settings()
 

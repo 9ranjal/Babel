@@ -1,0 +1,105 @@
+from __future__ import annotations
+
+import asyncio
+from datetime import datetime, timedelta
+from typing import Any
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.core.settings import settings
+from api.services.supabase_client import get_sessionmaker
+from .handlers import HANDLERS
+
+
+async def _claim_next_job(session: AsyncSession) -> dict | None:
+    q = text(
+        """
+        with j as (
+            select id
+            from public.jobs
+            where status = 'queued'
+            order by created_at asc
+            for update skip locked
+            limit 1
+        )
+        update public.jobs as jobs
+        set status = 'working', updated_at = now()
+        from j
+        where jobs.id = j.id
+        returning jobs.*;
+        """
+    )
+    res = await session.execute(q)
+    row = res.mappings().first()
+    return dict(row) if row else None
+
+
+async def _finish_job(session: AsyncSession, job_id: str) -> None:
+    await session.execute(
+        text("update public.jobs set status='done', updated_at = now() where id = :id"),
+        {"id": job_id},
+    )
+
+
+async def _fail_job(session: AsyncSession, job: dict, error: str) -> None:
+    attempts = int(job.get("attempts", 0)) + 1
+    if attempts >= 3:
+        await session.execute(
+            text(
+                """
+                update public.jobs
+                set status='failed', attempts=:attempts, last_error=:err, failed_at=now(), updated_at=now()
+                where id = :id
+                """
+            ),
+            {"id": job["id"], "attempts": attempts, "err": error[:2000]},
+        )
+        return
+    # exponential backoff: simple sleep prior to requeue (dev-only)
+    delay = min(8.0, 2.0 ** attempts)
+    await asyncio.sleep(delay)
+    await session.execute(
+        text(
+            """
+            update public.jobs
+            set status='queued', attempts=:attempts, last_error=:err, updated_at=now()
+            where id = :id
+            """
+        ),
+        {"id": job["id"], "attempts": attempts, "err": error[:2000]},
+    )
+
+
+async def run_worker_loop() -> None:
+    S = get_sessionmaker()
+    poll_seconds = max(0.05, settings.JOB_POLL_INTERVAL_MS / 1000.0)
+    while True:
+        async with S() as session:
+            job = await _claim_next_job(session)
+            if not job:
+                await session.commit()
+                await asyncio.sleep(poll_seconds)
+                continue
+            job_type = job.get("type")
+            handler = HANDLERS.get(job_type)
+            if not handler:
+                await _fail_job(session, job, f"no handler for type={job_type}")
+                await session.commit()
+                continue
+            try:
+                await handler(job)
+                await _finish_job(session, job["id"])
+            except Exception as exc:  # pragma: no cover
+                await _fail_job(session, job, str(exc))
+            await session.commit()
+
+
+def main() -> None:
+    asyncio.run(run_worker_loop())
+
+
+if __name__ == "__main__":
+    main()
+
+

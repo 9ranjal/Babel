@@ -241,6 +241,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
   const setClauses = useDocStore((s) => s.setClauses);
   const setSelected = useDocStore((s) => s.setSelected);
   const clearAnalyses = useDocStore((s) => s.clearAnalyses);
+  const setIsUploading = useDocStore((s) => s.setIsUploading);
 
   // Create session on mount if needed
   useEffect(() => {
@@ -299,12 +300,18 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading || processingMessageRef.current) return;
-    
+
     processingMessageRef.current = true;
     setIsLoading(true);
 
-    if (isMainView && currentSession) {
-      addMessage(currentSession.id, {
+    // Ensure we have a session for main view
+    let sessionId = currentSession?.id;
+    if (isMainView && !sessionId) {
+      sessionId = createSession('New conversation', module);
+    }
+
+    if (isMainView && sessionId) {
+      addMessage(sessionId, {
         role: 'user',
         content: content.trim()
       });
@@ -403,6 +410,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
     const file = event.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setIsUploading(true);
     try {
       const { document_id } = await uploadDocument(file);
       showSuccess('Upload started', 'Parsing term sheet…');
@@ -424,6 +432,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
     } finally {
       event.target.value = '';
       setUploading(false);
+      setIsUploading(false);
     }
   };
 

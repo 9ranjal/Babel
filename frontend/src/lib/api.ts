@@ -21,6 +21,11 @@ export async function getDocument(id: string) {
   return json<any>(res)
 }
 
+export async function getDocumentStatus(id: string): Promise<{ status: string }> {
+  const res = await fetch(resolveApiUrl(`/documents/${id}/status`))
+  return json<{ status: string }>(res)
+}
+
 export async function listClauses(id: string) {
   const res = await fetch(resolveApiUrl(`/documents/${id}/clauses`))
   return json<any[]>(res)

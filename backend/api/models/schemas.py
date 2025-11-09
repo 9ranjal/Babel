@@ -10,6 +10,7 @@ class DocumentOut(BaseModel):
     filename: str
     mime: Optional[str] = None
     blob_path: str
+    status: Optional[str] = None
     leverage_json: dict
     graph_json: Optional[dict] = None
     pages_json: Optional[dict] = None

@@ -22,7 +22,7 @@ async def get_document(doc_id: str) -> Any:
         row = (
             await session.execute(
                 text(
-                    "select id, filename, mime, blob_path, leverage_json, graph_json, pages_json from public.documents where id = :id and user_id = :uid"
+                    "select id, filename, mime, blob_path, status, leverage_json, graph_json, pages_json from public.documents where id = :id and user_id = :uid"
                 ),
                 {"id": doc_id, "uid": demo_user},
             )
@@ -34,6 +34,7 @@ async def get_document(doc_id: str) -> Any:
             "filename": row.filename,
             "mime": row.mime,
             "blob_path": row.blob_path,
+            "status": row.status,
             "leverage_json": row.leverage_json,
             "graph_json": row.graph_json,
             "pages_json": row.pages_json,
@@ -73,5 +74,23 @@ async def list_clauses(doc_id: str) -> Any:
             }
             for r in rows
         ]
+
+
+@router.get("/documents/{doc_id}/status")
+async def get_document_status(doc_id: str) -> Any:
+    demo_user = get_demo_user_id()
+    S = get_sessionmaker()
+    async with S() as session:  # type: AsyncSession
+        row = (
+            await session.execute(
+                text(
+                    "select status from public.documents where id = :id and user_id = :uid"
+                ),
+                {"id": doc_id, "uid": demo_user},
+            )
+        ).mappings().fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Not found")
+        return {"status": row.status}
 
 
