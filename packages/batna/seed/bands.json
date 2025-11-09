@@ -1,19 +1,306 @@
 {
   "version": 1,
+  "default_leverage": { "investor": 0.6, "founder": 0.4 },
   "clauses": [
     {
       "clause_key": "exclusivity",
-      "title": "Exclusivity / No‑Shop",
-      "attributes": { "unit": "days" },
+      "title": "Exclusivity / No-Shop",
+      "description": "Exclusive negotiation window during which the company cannot solicit or engage with other offers.",
+      "founder_pov": "Keep the period short to preserve leverage and avoid runway risk.",
+      "investor_pov": "Longer window to finish diligence and docs without competitive pressure.",
+      "links": ["rofo", "rofr", "tag", "drag"],
+      "attributes": { "unit": "days", "value_type": "number" },
       "bands": [
-        { "name": "short",  "range": [15, 30], "founder_score": 1.0, "investor_score": 0.2, "rationale": "Founder flexibility" },
-        { "name": "market", "range": [30, 45], "founder_score": 0.6, "investor_score": 0.6, "rationale": "Balanced" },
-        { "name": "long",   "range": [45, 60], "founder_score": 0.2, "investor_score": 1.0, "rationale": "Investor diligence window" }
+        { "name": "short",  "range": [15, 30], "founder_score": 1.0, "investor_score": 0.2, "rationale": "Founder flexibility." },
+        { "name": "market", "range": [30, 45], "founder_score": 0.6, "investor_score": 0.6, "rationale": "Balanced convention." },
+        { "name": "long",   "range": [45, 60], "founder_score": 0.2, "investor_score": 1.0, "rationale": "Investor completeness." }
       ],
       "trades": [
-        { "give": "shorter exclusivity", "for": ["weekly diligence updates", "confirmatory DD only"] }
+        "Shorter window ↔ weekly diligence updates",
+        "Shorter window ↔ confirmatory DD only"
       ],
-      "links": ["rofo", "rofr", "tag", "drag"]
+      "regex_hints": ["exclusiv", "no[- ]shop", "no[- ]solicit", "standstill"]
+    },
+    {
+      "clause_key": "preemptive_pro_rata",
+      "title": "Pre-emptive Right (Future Rounds)",
+      "description": "Right of existing investor to participate in future issuances to maintain ownership.",
+      "founder_pov": "Accept but limit duration/scope.",
+      "investor_pov": "Dilution hedge across fund life.",
+      "links": [],
+      "attributes": { "unit": "none", "value_type": "enum", "enum_values": ["none", "limited_next_round", "full_ongoing"] },
+      "bands": [
+        { "name": "none", "enum_match": "none", "founder_score": 0.9, "investor_score": 0.1, "rationale": "Founder allocation freedom." },
+        { "name": "market", "enum_match": "limited_next_round", "founder_score": 0.6, "investor_score": 0.6, "rationale": "Limited to next round." },
+        { "name": "full", "enum_match": "full_ongoing", "founder_score": 0.2, "investor_score": 1.0, "rationale": "Strong investor protection." }
+      ],
+      "trades": [
+        "Limit to next round ↔ higher cap",
+        "Ongoing right ↔ narrower carve-outs"
+      ],
+      "regex_hints": ["pre-?empt", "pro[- ]rata participation", "rights issue", "subscription right"]
+    },
+    {
+      "clause_key": "rofo",
+      "title": "Right of First Offer (ROFO)",
+      "description": "Seller must offer shares to ROFO-holder before third parties.",
+      "founder_pov": "Prefer ROFO over ROFR for price discovery.",
+      "investor_pov": "Early shot at increasing stake.",
+      "links": ["rofr", "tag"],
+      "attributes": { "unit": "days", "value_type": "number" },
+      "bands": [
+        { "name": "short_window", "range": [7, 15], "founder_score": 0.8, "investor_score": 0.4, "rationale": "Tight response, minimal delay." },
+        { "name": "market", "range": [15, 30], "founder_score": 0.6, "investor_score": 0.6, "rationale": "Typical." },
+        { "name": "long_window", "range": [30, 45], "founder_score": 0.3, "investor_score": 0.9, "rationale": "Comfortable investor timing." }
+      ],
+      "trades": [
+        "Short window ↔ limited info pack",
+        "Short window ↔ exclude small transfers (<5%)"
+      ],
+      "regex_hints": ["right of first offer", "\\bROFO\\b", "first offer"]
+    },
+    {
+      "clause_key": "rofr",
+      "title": "Right of First Refusal (ROFR)",
+      "description": "Investor can match a bona fide third-party offer and buy on identical terms.",
+      "founder_pov": "More onerous; tighten windows and carve-outs.",
+      "investor_pov": "Controls cap table entries.",
+      "links": ["rofo", "tag"],
+      "attributes": { "unit": "days", "value_type": "number" },
+      "bands": [
+        { "name": "short_window", "range": [7, 15], "founder_score": 0.6, "investor_score": 0.7, "rationale": "Control with bounded delay." },
+        { "name": "market", "range": [15, 30], "founder_score": 0.4, "investor_score": 0.9, "rationale": "Market timelines." }
+      ],
+      "trades": [
+        "Short ROFR window ↔ broader info rights",
+        "ROFR carve-outs ↔ tag comfort on founder sales"
+      ],
+      "regex_hints": ["right of first refusal", "\\bROFR\\b", "match(ing)? offer", "bona fide"]
+    },
+    {
+      "clause_key": "tag_along",
+      "title": "Tag Along (Co-Sale)",
+      "description": "Investor can sell alongside founders on same terms.",
+      "founder_pov": "Prefer pro-rata only.",
+      "investor_pov": "Minority exit protection.",
+      "links": ["rofr", "drag"],
+      "attributes": { "unit": "none", "value_type": "enum", "enum_values": ["none", "pro_rata_only", "full_on_threshold"] },
+      "bands": [
+        { "name": "none", "enum_match": "none", "founder_score": 0.8, "investor_score": 0.2, "rationale": "Max founder flexibility." },
+        { "name": "market", "enum_match": "pro_rata_only", "founder_score": 0.6, "investor_score": 0.6, "rationale": "Balanced, common." },
+        { "name": "full_threshold", "enum_match": "full_on_threshold", "founder_score": 0.3, "investor_score": 0.9, "rationale": "Enables full investor exit when triggered." }
+      ],
+      "trades": [
+        "Pro-rata tag ↔ stronger ROFR",
+        "Exclude de minimis transfers (<5%) from tag"
+      ],
+      "regex_hints": ["tag[- ]along", "co[- ]sale", "pro rata tag", "same terms and conditions"]
+    },
+    {
+      "clause_key": "drag_along",
+      "title": "Drag Along",
+      "description": "If no exit within timeline, investor can force sale of all shares on same terms.",
+      "founder_pov": "Seek longer fuse, floors, buyer qualifications.",
+      "investor_pov": "Assures exit path.",
+      "links": ["exit", "tag"],
+      "attributes": { "unit": "object", "value_type": "object" },
+      "bands": [
+        {
+          "name": "founder_friendly",
+          "predicate": "drag after ≥6y AND floor ≥2.0x AND qualified buyer",
+          "founder_score": 0.8, "investor_score": 0.4,
+          "rationale": "High floor and time."
+        },
+        {
+          "name": "market",
+          "predicate": "drag after 4–5y OR floor ≥1.5x",
+          "founder_score": 0.5, "investor_score": 0.7,
+          "rationale": "Common VC pattern."
+        },
+        {
+          "name": "investor_friendly",
+          "predicate": "drag ≤4y OR no floor",
+          "founder_score": 0.2, "investor_score": 1.0,
+          "rationale": "Fast exit bias."
+        }
+      ],
+      "trades": [
+        "Lower floor ↔ longer timeline",
+        "Earlier drag ↔ higher floor + approved-buyer list"
+      ],
+      "regex_hints": ["drag[- ]along", "force(d)? sale", "compel", "same terms and price"]
+    },
+    {
+      "clause_key": "founder_vesting",
+      "title": "Founder Vesting & Clawback",
+      "description": "Vesting schedule; good vs bad leaver; treatment on exit.",
+      "founder_pov": "Prefer partial acceleration and narrow bad-leaver.",
+      "investor_pov": "Retention alignment.",
+      "links": [],
+      "attributes": { "unit": "object", "value_type": "object" },
+      "bands": [
+        { "name": "market", "predicate": "4y vest; 1y cliff; monthly thereafter; standard leaver", "founder_score": 0.6, "investor_score": 0.6, "rationale": "Standard." },
+        { "name": "founder_friendly", "predicate": "partial acceleration on good-leaver", "founder_score": 0.8, "investor_score": 0.4, "rationale": "Fairness on exit." },
+        { "name": "investor_friendly", "predicate": "broad bad-leaver; no acceleration", "founder_score": 0.3, "investor_score": 0.9, "rationale": "Maximum control." }
+      ],
+      "trades": [
+        "Acceleration (partial) ↔ broader good-leaver carve-outs",
+        "Bad-leaver breadth ↔ buy-back cap"
+      ],
+      "regex_hints": ["vesting", "cliff", "good leaver", "bad leaver", "buy[- ]back"]
+    },
+    {
+      "clause_key": "anti_dilution",
+      "title": "Anti-dilution",
+      "description": "Adjusts conversion price in down rounds.",
+      "founder_pov": "Prefer broad-based weighted average.",
+      "investor_pov": "Protection against down rounds.",
+      "links": [],
+      "attributes": { "unit": "none", "value_type": "enum", "enum_values": ["none", "narrow_wa", "broad_wa", "full_ratchet"] },
+      "bands": [
+        { "name": "none", "enum_match": "none", "founder_score": 0.9, "investor_score": 0.1, "rationale": "Founder-favoring." },
+        { "name": "narrow_wa", "enum_match": "narrow_wa", "founder_score": 0.6, "investor_score": 0.6, "rationale": "Constrained base." },
+        { "name": "broad_wa", "enum_match": "broad_wa", "founder_score": 0.5, "investor_score": 0.8, "rationale": "Market." },
+        { "name": "full_ratchet", "enum_match": "full_ratchet", "founder_score": 0.1, "investor_score": 1.0, "rationale": "Distressed/strong leverage." }
+      ],
+      "trades": [
+        "Broader carve-outs ↔ WA notched to investor",
+        "Full ratchet fallback ↔ valuation floor trigger"
+      ],
+      "regex_hints": ["anti[- ]dilution", "full ratchet", "weighted average", "conversion price adjustment"]
+    },
+    {
+      "clause_key": "reserved_matters",
+      "title": "Affirmative / Veto Rights",
+      "description": "Reserved matters requiring investor consent.",
+      "founder_pov": "Keep list tight; thresholds; deemed-approval.",
+      "investor_pov": "Protects economics and exit.",
+      "links": [],
+      "attributes": { "unit": "none", "value_type": "enum", "enum_values": ["narrow_list", "market_list", "broad_list"] },
+      "bands": [
+        { "name": "narrow", "enum_match": "narrow_list", "founder_score": 0.8, "investor_score": 0.4, "rationale": "Minimal bottlenecks." },
+        { "name": "market", "enum_match": "market_list", "founder_score": 0.6, "investor_score": 0.6, "rationale": "Typical reserved matters." },
+        { "name": "broad", "enum_match": "broad_list", "founder_score": 0.3, "investor_score": 0.9, "rationale": "Wide gating." }
+      ],
+      "trades": [
+        "Broader list ↔ higher materiality thresholds",
+        "Deemed approval (5–10 BD) ↔ broader scope"
+      ],
+      "regex_hints": ["affirmative rights", "reserved matters", "consent", "veto", "deemed approval"]
+    },
+    {
+      "clause_key": "exit",
+      "title": "Exit Timeline & Mode",
+      "description": "Target timing and modes (QIPO, strategic sale, secondary).",
+      "founder_pov": "Prefer flexible timing.",
+      "investor_pov": "Seek 4–5 year path.",
+      "links": ["drag"],
+      "attributes": { "unit": "years", "value_type": "number" },
+      "bands": [
+        { "name": "long_fuse", "range": [5, 7], "founder_score": 0.8, "investor_score": 0.4, "rationale": "More compounding." },
+        { "name": "market", "range": [4, 5], "founder_score": 0.6, "investor_score": 0.6, "rationale": "Typical VC horizon." },
+        { "name": "short_fuse", "range": [3, 4], "founder_score": 0.3, "investor_score": 0.9, "rationale": "Faster liquidity." }
+      ],
+      "trades": [
+        "Earlier target ↔ stronger consultation on mode",
+        "Longer target ↔ interim secondary"
+      ],
+      "regex_hints": ["exit", "liquidity event", "QIPO", "qualified IPO", "strategic sale", "secondary"]
+    },
+    {
+      "clause_key": "liquidation_preference",
+      "title": "Liquidation Preference",
+      "description": "Payout priority on liquidation; multiple and participation.",
+      "founder_pov": "Push for 1x non-participating.",
+      "investor_pov": "1x NP market; higher only in edge cases.",
+      "links": [],
+      "attributes": { "unit": "none", "value_type": "enum", "enum_values": ["1x_np", "1x_p", ">1x_np", ">1x_p"] },
+      "bands": [
+        { "name": "market", "enum_match": "1x_np", "founder_score": 0.7, "investor_score": 0.7, "rationale": "Market norm." },
+        { "name": "investor_plus", "enum_match": "1x_p", "founder_score": 0.3, "investor_score": 0.9, "rationale": "Participating preference." },
+        { "name": "heavy_np", "enum_match": ">1x_np", "founder_score": 0.2, "investor_score": 0.9, "rationale": "Multiple >1x NP." },
+        { "name": "heavy_p", "enum_match": ">1x_p", "founder_score": 0.1, "investor_score": 1.0, "rationale": "Multiple + participating." }
+      ],
+      "trades": [
+        "Participating → non-participating ↔ board/affirmative upgrades",
+        "Multiple >1x ↔ performance ratchet sunset"
+      ],
+      "regex_hints": ["liquidation preference", "1x", "non[- ]participating", "participating", "multiple"]
+    },
+    {
+      "clause_key": "board",
+      "title": "Board Composition",
+      "description": "Board seats allocation and observer rights.",
+      "founder_pov": "Founder majority; observers instead of seats.",
+      "investor_pov": "At least one seat with protective votes.",
+      "links": [],
+      "attributes": { "unit": "none", "value_type": "enum", "enum_values": ["founder_majority", "balanced", "investor_weighted"] },
+      "bands": [
+        { "name": "founder_friendly", "enum_match": "founder_majority", "founder_score": 0.8, "investor_score": 0.4, "rationale": "Founder control." },
+        { "name": "market", "enum_match": "balanced", "founder_score": 0.6, "investor_score": 0.6, "rationale": "Balanced board." },
+        { "name": "investor_friendly", "enum_match": "investor_weighted", "founder_score": 0.3, "investor_score": 0.9, "rationale": "Investor control tilt." }
+      ],
+      "trades": [
+        "Investor seat ↔ observer instead + enhanced info rights",
+        "Balanced board ↔ chair rotation"
+      ],
+      "regex_hints": ["board", "director", "observer", "composition", "seat"]
+    },
+    {
+      "clause_key": "information_rights",
+      "title": "Information Rights",
+      "description": "Financials, KPIs, budgets, audit access; delivery cadence.",
+      "founder_pov": "Reasonable cadence; avoid burdensome detail.",
+      "investor_pov": "Monthly KPIs/quarterly financials at minimum.",
+      "links": [],
+      "attributes": { "unit": "none", "value_type": "enum", "enum_values": ["quarterly_min", "monthly_kpi_q_fin", "monthly_all"] },
+      "bands": [
+        { "name": "founder_friendly", "enum_match": "quarterly_min", "founder_score": 0.8, "investor_score": 0.4, "rationale": "Low overhead." },
+        { "name": "market", "enum_match": "monthly_kpi_q_fin", "founder_score": 0.6, "investor_score": 0.6, "rationale": "Monthly KPIs; quarterly financials." },
+        { "name": "investor_friendly", "enum_match": "monthly_all", "founder_score": 0.3, "investor_score": 0.9, "rationale": "High cadence and detail." }
+      ],
+      "trades": [
+        "Higher cadence ↔ templated reporting + API access",
+        "Lower cadence ↔ expanded quarterly depth"
+      ],
+      "regex_hints": ["information rights", "financial statements", "KPIs", "budget", "audit", "reporting cadence"]
+    },
+    {
+      "clause_key": "option_pool",
+      "title": "ESOP Pool Size",
+      "description": "Pre- or post-money option pool sizing.",
+      "founder_pov": "Post-money pool; keep dilution tight.",
+      "investor_pov": "Pre-money pool to avoid investor dilution.",
+      "links": [],
+      "attributes": { "unit": "percent", "value_type": "number" },
+      "bands": [
+        { "name": "post_money_8_12", "range": [8, 12], "founder_score": 0.8, "investor_score": 0.4, "rationale": "Post-money; typical size." },
+        { "name": "market_pre_10_15", "range": [10, 15], "founder_score": 0.6, "investor_score": 0.6, "rationale": "Pre-money; market ask." }
+      ],
+      "trades": [
+        "Pre-money pool ↔ staged refresh after milestones",
+        "Post-money pool ↔ upfront hiring plan disclosure"
+      ],
+      "regex_hints": ["ESOP", "option pool", "employee stock", "pre[- ]money", "post[- ]money"]
+    },
+    {
+      "clause_key": "pay_to_play",
+      "title": "Pay-to-Play",
+      "description": "Investors must participate pro-rata in down rounds or face penalties.",
+      "founder_pov": "Helps bring in fresh capital while protecting company.",
+      "investor_pov": "Penalty only if not supporting; desire soft version.",
+      "links": [],
+      "attributes": { "unit": "none", "value_type": "enum", "enum_values": ["none", "soft", "hard"] },
+      "bands": [
+        { "name": "none", "enum_match": "none", "founder_score": 0.6, "investor_score": 0.5, "rationale": "No penalty; simpler governance." },
+        { "name": "market", "enum_match": "soft", "founder_score": 0.6, "investor_score": 0.6, "rationale": "Soft penalties (e.g., loss of some rights)." },
+        { "name": "hard", "enum_match": "hard", "founder_score": 0.4, "investor_score": 0.9, "rationale": "Hard penalties (e.g., conversion to shadow/common)." }
+      ],
+      "trades": [
+        "Hard → soft ↔ stronger anti-dilution",
+        "Soft → none ↔ higher ESOP/top-up"
+      ],
+      "regex_hints": ["pay[- ]to[- ]play", "participate pro[- ]rata", "penalt", "conversion upon failure"]
     }
   ]
 }

@@ -16,7 +16,7 @@ from api.services.parse_pdf import parse_pdf_bytes
 from api.services.parse_docx import parse_docx_bytes
 from api.services.chunking import chunks_from_pages_json
 from api.services.embedder import embed_texts
-from api.services.extract_regex import regex_extract
+from api.services.extract_regex import regex_extract_from_docling, regex_extract_plaintext
 from api.services.extract_llm import normalize_snippets
 from api.services.build_graph import build_graph
 from api.services.events import fire_event
@@ -230,52 +230,88 @@ async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
         ).mappings().first()
         text_plain = (row["text_plain"] or "") if row else ""
         pages_json = row["pages_json"] if row else {}
-        # If text_plain is empty, try to get it from pages_json (Docling stores it there)
-        if not text_plain and pages_json and "text_plain" in pages_json:
-            text_plain = pages_json["text_plain"]
-        snippets = regex_extract(text_plain)
-        normalized = normalize_snippets(snippets)
-        # Insert clauses
-        clause_ids: List[str] = []
-        for s in normalized:
-            res = await session.execute(
-                text(
-                    """
-                    insert into public.clauses (id, document_id, clause_key, title, text, start_idx, end_idx, page_hint)
-                    values (gen_random_uuid(), :document_id, :clause_key, :title, :text, :start_idx, :end_idx, :page_hint)
+        if not text_plain and isinstance(pages_json, dict) and "text_plain" in pages_json:
+            text_plain = pages_json.get("text_plain") or ""
+
+        snippets: List[Dict[str, Any]] = []
+        if isinstance(pages_json, dict) and pages_json.get("blocks"):
+            try:
+                snippets = regex_extract_from_docling(pages_json)
+            except Exception:  # pragma: no cover - defensive, fall back to plaintext path
+                snippets = []
+        if not snippets:
+            snippets = regex_extract_plaintext(text_plain)
+
+        if not snippets and text_plain.strip():
+            snippets = [
+                {
+                    "clause_key": "document_overview",
+                    "title": "Document Overview",
+                    "text": text_plain[:500] + "..." if len(text_plain) > 500 else text_plain,
+                    "start_idx": 0,
+                    "end_idx": len(text_plain),
+                    "page_hint": None,
+                    "attributes": {},
+                    "block_ids": [],
+                    "source": "fallback",
+                    "confidence": 0.5,
+                }
+            ]
+
+        normalized = normalize_snippets(snippets, temperature=0.0)
+        insert_clause = text(
+            """
+                    insert into public.clauses (id, document_id, clause_key, title, text, start_idx, end_idx, page_hint, json_meta)
+                    values (gen_random_uuid(), :document_id, :clause_key, :title, :text, :start_idx, :end_idx, :page_hint, :json_meta)
                     returning id
                     """
-                ),
+        ).bindparams(bindparam("json_meta", type_=JSONB))
+        clause_ids: List[str] = []
+        for snippet in normalized:
+            res = await session.execute(
+                insert_clause,
                 {
                     "document_id": document_id,
-                    "clause_key": s.get("clause_key"),
-                    "title": s.get("title"),
-                    "text": s.get("text"),
-                    "start_idx": s.get("start_idx"),
-                    "end_idx": s.get("end_idx"),
-                    "page_hint": s.get("page_hint"),
+                    "clause_key": snippet.get("clause_key"),
+                    "title": snippet.get("title"),
+                    "text": snippet.get("text"),
+                    "start_idx": snippet.get("start_idx"),
+                    "end_idx": snippet.get("end_idx"),
+                    "page_hint": snippet.get("page_hint"),
+                    "json_meta": snippet.get("json_meta", {}),
                 },
             )
             clause_ids.append(str(res.scalar_one()))
-        # Clause↔chunk linkage (nearest by page)
-        # Map page->one chunk id for simplicity
+
         rows = (
             await session.execute(
-                text("select id, page from public.chunks where document_id = :id"),
+                text("select id, block_id, page from public.chunks where document_id = :id"),
                 {"id": document_id},
             )
         ).mappings().all()
-        page_to_chunk = {}
+        block_to_chunk: Dict[str, str] = {}
+        page_to_chunk: Dict[int, str] = {}
         for r in rows:
-            page_to_chunk.setdefault(int(r["page"]), str(r["id"]))
-        # Link using page_hint if present, else page 0 if exists
-        for cid, s in zip(clause_ids, normalized):
-            page_hint = s.get("page_hint")
+            chunk_id = str(r["id"])
+            block_id = r.get("block_id")
+            page_val = r.get("page")
+            if block_id:
+                block_to_chunk[str(block_id)] = chunk_id
+            if page_val is not None:
+                page_to_chunk.setdefault(int(page_val), chunk_id)
+
+        for cid, snippet in zip(clause_ids, normalized):
             target_chunk = None
-            if page_hint is not None and int(page_hint) in page_to_chunk:
-                target_chunk = page_to_chunk[int(page_hint)]
-            elif 0 in page_to_chunk:
-                target_chunk = page_to_chunk[0]
+            for block_id in snippet.get("block_ids", []):
+                if block_id in block_to_chunk:
+                    target_chunk = block_to_chunk[block_id]
+                    break
+            if not target_chunk:
+                page_hint = snippet.get("page_hint")
+                if page_hint is not None and int(page_hint) in page_to_chunk:
+                    target_chunk = page_to_chunk[int(page_hint)]
+                elif 0 in page_to_chunk:
+                    target_chunk = page_to_chunk[0]
             if target_chunk:
                 await session.execute(
                     text("update public.chunks set clause_id = :cid where id = :chunk_id"),

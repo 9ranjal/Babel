@@ -28,3 +28,25 @@ def test_extract_amount_gbp_k():
     assert int(attrs.get("amount", 0)) == 250000
 
 
+def test_extract_liquidation_multiple_and_participation():
+    attrs = extract_attributes("Series A includes a 2.0x participating liquidation preference.")
+    assert attrs.get("liq_multiple") == 2.0
+    assert attrs.get("participation") == "participating"
+
+
+def test_extract_antidilution_type():
+    attrs = extract_attributes("Anti-dilution protection shall be broad-based weighted average.")
+    assert attrs.get("antidilution_type") == "broad-based"
+
+
+def test_extract_option_pool_percent():
+    attrs = extract_attributes("Option pool will be topped up to 15% post-money.")
+    assert attrs.get("pool_percent") == 15.0
+
+
+def test_extract_vesting_and_cliff():
+    attrs = extract_attributes("Founders vest over 4 years with a 12 month cliff in reverse vesting.")
+    assert attrs.get("vesting_years") == 4
+    assert attrs.get("cliff_months") == 12
+
+

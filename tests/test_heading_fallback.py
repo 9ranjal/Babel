@@ -43,6 +43,6 @@ def test_heading_fallback_board_composition(tmp_path):
     assert cr.status_code == 200
     clauses = cr.json()
     keys = [c.get("clause_key") for c in clauses]
-    assert "board_composition" in keys
+    assert "board" in keys
 
 
