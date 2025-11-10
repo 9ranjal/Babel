@@ -3,15 +3,8 @@ import React, { useState } from 'react';
 import { useDocStore } from '../../lib/store';
 import { Button } from '../ui/Button';
 import { ClauseList } from './ClauseList';
-import { DocumentViewer } from './DocumentViewer';
 import { GraphViewer } from './GraphViewer';
-
-type TabKey = 'doc' | 'graph';
-
-const tabs: { key: TabKey; label: string }[] = [
-  { key: 'doc', label: 'Document' },
-  { key: 'graph', label: 'Graph' },
-];
+import { analyzeClauseInChat } from '../../lib/copilot';
 
 export function ViewerPane() {
   const document = useDocStore((s) => s.document);
@@ -21,10 +14,7 @@ export function ViewerPane() {
   const setSelected = useDocStore((s) => s.setSelected);
   const resetStore = useDocStore((s) => s.reset);
 
-  const [tab, setTab] = useState<TabKey>('doc');
-
   const handleClear = () => {
-    setTab('doc');
     resetStore();
   };
 
@@ -56,67 +46,25 @@ export function ViewerPane() {
   return (
     <div className="h-full grid grid-rows-[auto_1fr]">
       <div className="flex items-center justify-between border-b bg-white/70 backdrop-blur px-4 py-2">
-        <div className="flex gap-1">
-          {tabs.map((t) => (
-            <TabButton key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>
-              {t.label}
-            </TabButton>
-          ))}
-        </div>
+        <div />
         <Button variant="ghost" size="sm" onClick={handleClear} className="text-xs">
           Clear
         </Button>
       </div>
-      <div className="grid grid-cols-[260px_1fr] h-full min-h-0">
-        <aside className="border-r border-[color:var(--border)] overflow-auto bg-[rgba(247,243,237,0.5)]">
-          <ClauseList clauses={clauses} selectedId={selectedClauseId} onSelect={(id) => setSelected(id)} />
-        </aside>
-        <main className="overflow-auto">
-          {tab === 'doc' ? (
-            <DocumentViewer
-              pagesJson={document?.pages_json}
-              spans={document?.pages_json?.spans || {}}
-              selectedClauseId={selectedClauseId}
-            />
-          ) : (
-            <GraphViewer
-              graphJson={document?.graph_json}
-              onSelectClause={(id) => {
-                if (id) {
-                  setSelected(id);
-                  setTab('doc');
-                }
-              }}
-            />
-          )}
-        </main>
-      </div>
+      <main className="overflow-auto h-full min-h-0">
+        <GraphViewer
+          graphJson={document?.graph_json}
+          onSelectClause={(id) => {
+            if (id) {
+              setSelected(id);
+              // Trigger AI analysis in chat
+              analyzeClauseInChat(id).catch(() => {
+                // swallow chat errors to avoid breaking UI
+              });
+            }
+          }}
+        />
+      </main>
     </div>
   );
 }
-
-function TabButton({
-  children,
-  active,
-  onClick,
-}: {
-  children: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-        active
-          ? 'bg-[#4689F0] text-white shadow-sm'
-          : 'text-[color:var(--ink-500)] hover:bg-[rgba(70,137,240,0.1)]'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-

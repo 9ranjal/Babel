@@ -2,7 +2,41 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+
+DEFAULT_LEVERAGE = {"investor": 0.6, "founder": 0.4}
+
+
+def composite_score(b: Dict[str, Any], lev: Dict[str, float]) -> float:
+    return (b.get("investor_score", 0) * lev["investor"]) + (b.get("founder_score", 0) * lev["founder"])
+
+
+def pick_band(bands: List[Dict[str, Any]], attrs: Dict[str, Any], lev: Dict[str, float]) -> Optional[Dict[str, Any]]:
+    v = (attrs or {}).get("value", None)
+
+    def _match(b):
+        if "range" in b and isinstance(v, (int, float)):
+            lo, hi = b["range"]
+            return lo <= v <= hi
+        if "enum_match" in b and isinstance(v, str):
+            return v == b["enum_match"]
+        if "range" not in b and "enum_match" not in b:
+            return True  # predicate-only, allow; business logic can refine
+        return False
+
+    matches = [b for b in bands if _match(b)]
+
+    if not matches:
+        return None
+
+    matches.sort(key=lambda x: composite_score(x, lev), reverse=True)
+
+    for m in matches:
+        if m.get("name", "").lower() == "market":
+            return m
+
+    return matches[0]
 
 
 def load_bands(repo_root: Optional[str] = None) -> Dict[str, Any]:
@@ -21,24 +55,5 @@ def find_clause_band_spec(bands_data: Dict[str, Any], clause_key: str) -> Option
         if c.get("clause_key") == clause_key:
             return c
     return None
-
-
-def pick_band(bands: list[Dict[str, Any]], attrs: Dict[str, Any], lev: Dict[str, float]):
-    candidates: list[tuple[float, Dict[str, Any]]] = []
-    for b in bands:
-        investor = b.get("investor_score", 0.0)
-        founder = b.get("founder_score", 0.0)
-        score = investor * lev.get("investor", 0.5) + founder * lev.get("founder", 0.5)
-        ok = True
-        rng = b.get("range")
-        if rng is not None and "value" in attrs:
-            v = attrs["value"]
-            ok = rng[0] <= v <= rng[1]
-        if ok:
-            candidates.append((score, b))
-    if not candidates:
-        return None
-    candidates.sort(key=lambda x: x[0], reverse=True)
-    return candidates[0][1]
 
 

@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import bindparam
 
+from api.core.logging import logger
 from api.core.settings import settings
 from api.services.supabase_client import get_sessionmaker, download_file
 from api.services import parse_docling
@@ -36,13 +37,23 @@ async def _enqueue_job(
 ) -> None:
     import json
 
-    payload_serializable = json.dumps(payload, default=str)
-    q = text(
-        """
-        insert into public.jobs (type, document_id, payload, idempotency_key, status)
-        values (:type, :document_id, :payload, :idem, 'queued')
-        on conflict (idempotency_key) do nothing
-        """
+    payload_serializable = json.loads(json.dumps(payload, default=str))
+    q = (
+        text(
+            """
+            insert into public.jobs (type, document_id, payload, idempotency_key, status, attempts)
+            values (:type, :document_id, :payload, :idem, 'queued', 0)
+            on conflict (idempotency_key) do update
+            set status = 'queued',
+                attempts = 0,
+                last_error = null,
+                failed_at = null,
+                payload = excluded.payload,
+                document_id = excluded.document_id,
+                type = excluded.type,
+                updated_at = now()
+            """
+        ).bindparams(bindparam("payload", type_=JSONB))
     )
     await session.execute(
         q,
@@ -53,6 +64,7 @@ async def _enqueue_job(
             "idem": idempotency_key,
         },
     )
+    logger.info("[worker] enqueue job type=%s doc=%s idem=%s", job_type, document_id, idempotency_key)
 
 
 def _to_docling_contract_from_fallback(parsed: Dict[str, Any]) -> Dict[str, Any]:
@@ -74,6 +86,7 @@ async def handle_parse_doc(job: dict) -> None:  # PARSE_DOC
     blob_path = payload.get("blob_path")
     if not document_id or not blob_path:
         return
+    logger.info("[worker] PARSE_DOC start document_id=%s mime=%s blob=%s", document_id, mime, blob_path)
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
         # Idempotency: skip if pages_json already set
@@ -99,6 +112,7 @@ async def handle_parse_doc(job: dict) -> None:  # PARSE_DOC
         bytes_content = await download_file("documents", blob_path)
 
         # Try Docling
+        engine = "docling"
         try:
             pages_json = parse_docling.parse_with_docling(bytes_content)
             engine = pages_json.get("parser", {}).get("engine", "docling")
@@ -116,17 +130,28 @@ async def handle_parse_doc(job: dict) -> None:  # PARSE_DOC
                 parsed_fb = parse_docx_bytes(bytes_content)
             pages_json = _to_docling_contract_from_fallback(parsed_fb)
             text_plain = parsed_fb.get("text_plain", "")
+            engine = parsed_fb.get("engine", "fallback")
 
         # Persist
-        import json
+        from json import dumps
         q = text(
             """
             update public.documents
-            set text_plain = :text_plain, pages_json = :pages_json, status = 'parsed'
-            where id = :id
+               set text_plain = :text_plain,
+                   pages_json = :pages_json,
+                   status = 'parsed'
+             where id = :doc_id
             """
         )
-        await session.execute(q, {"id": document_id, "text_plain": text_plain, "pages_json": json.dumps(pages_json)})
+        await session.execute(
+            q.bindparams(bindparam("pages_json", type_=JSONB)),
+            {
+                "doc_id": str(document_id),
+                "text_plain": text_plain or "",
+                "pages_json": pages_json or {},
+            },
+        )
+        await session.commit()
 
         # Chain next
         await _enqueue_job(
@@ -138,12 +163,23 @@ async def handle_parse_doc(job: dict) -> None:  # PARSE_DOC
         )
         fire_event("parsed", {"document_id": document_id})
         await session.commit()
+        html_pages = len((pages_json or {}).get("html_pages") or [])
+        blocks = len((pages_json or {}).get("blocks") or [])
+        logger.info(
+            "[worker] PARSE_DOC done document_id=%s engine=%s html_pages=%d blocks=%d text_plain=%s",
+            document_id,
+            engine,
+            html_pages,
+            blocks,
+            "yes" if text_plain else "no",
+        )
 
 
 async def handle_chunk_embed(job: dict) -> None:  # CHUNK_EMBED
     document_id = job.get("document_id")
     if not document_id:
         return
+    logger.info("[worker] CHUNK_EMBED start document_id=%s", document_id)
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
         # Idempotency: if chunks exist, skip
@@ -165,26 +201,32 @@ async def handle_chunk_embed(job: dict) -> None:  # CHUNK_EMBED
             )
         ).mappings().first()
         pages_json = row["pages_json"] if row else {}
+        if isinstance(pages_json, str):
+            try:
+                pages_json = json.loads(pages_json)
+            except json.JSONDecodeError:
+                pages_json = {}
         chunks = chunks_from_pages_json(pages_json)
         # Insert chunks
-        import json
+        insert_chunk_stmt = (
+            text(
+                """
+                insert into public.chunks (id, document_id, clause_id, block_id, page, kind, text, meta)
+                values (gen_random_uuid(), :document_id, null, :block_id, :page, :kind, :text, :meta)
+                """
+            ).bindparams(bindparam("meta", type_=JSONB))
+        )
 
         for ch in chunks:
-            meta_serializable = json.loads(json.dumps(ch.get("meta", {}), default=str))
             await session.execute(
-                text(
-                    """
-                    insert into public.chunks (id, document_id, clause_id, block_id, page, kind, text, meta)
-                    values (gen_random_uuid(), :document_id, null, :block_id, :page, :kind, :text, :meta)
-                    """
-                ),
+                insert_chunk_stmt,
                 {
                     "document_id": document_id,
                     "block_id": ch.get("block_id"),
                     "page": ch.get("page", 0),
                     "kind": ch.get("kind", "para"),
                     "text": ch.get("text", "") or "",
-                    "meta": meta_serializable,
+                    "meta": ch.get("meta", {}) or {},
                 },
             )
         # Embeddings (optional)
@@ -202,12 +244,14 @@ async def handle_chunk_embed(job: dict) -> None:  # CHUNK_EMBED
         await _enqueue_job(session, "EXTRACT_NORMALIZE", document_id, {"document_id": document_id}, f"extract::{document_id}::v1")
         fire_event("chunked", {"document_id": document_id, "n": len(chunks)})
         await session.commit()
+        logger.info("[worker] CHUNK_EMBED done document_id=%s chunks=%d", document_id, len(chunks))
 
 
 async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
     document_id = job.get("document_id")
     if not document_id:
         return
+    logger.info("[worker] EXTRACT_NORMALIZE start document_id=%s", document_id)
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
         # Idempotency: if clauses exist for doc, skip to next
@@ -245,22 +289,28 @@ async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
         if not snippets and text_plain.strip():
             snippets = [
                 {
-                    "clause_key": "document_overview",
-                    "title": "Document Overview",
-                    "text": text_plain[:500] + "..." if len(text_plain) > 500 else text_plain,
-                    "start_idx": 0,
-                    "end_idx": len(text_plain),
-                    "page_hint": None,
-                    "attributes": {},
+                "clause_key": "document_overview",
+                "title": "Document Overview",
+                "text": text_plain[:500] + "..." if len(text_plain) > 500 else text_plain,
+                "start_idx": 0,
+                "end_idx": len(text_plain),
+                "page_hint": None,
+                "attributes": {},
                     "block_ids": [],
                     "source": "fallback",
-                    "confidence": 0.5,
+                "confidence": 0.5,
                 }
             ]
 
         normalized = normalize_snippets(snippets, temperature=0.0)
+        logger.info(
+            "[worker] EXTRACT_NORMALIZE normalized document_id=%s raw_snippets=%d normalized=%d",
+            document_id,
+            len(snippets),
+            len(normalized),
+        )
         insert_clause = text(
-            """
+                    """
                     insert into public.clauses (id, document_id, clause_key, title, text, start_idx, end_idx, page_hint, json_meta)
                     values (gen_random_uuid(), :document_id, :clause_key, :title, :text, :start_idx, :end_idx, :page_hint, :json_meta)
                     returning id
@@ -308,10 +358,10 @@ async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
                     break
             if not target_chunk:
                 page_hint = snippet.get("page_hint")
-                if page_hint is not None and int(page_hint) in page_to_chunk:
-                    target_chunk = page_to_chunk[int(page_hint)]
-                elif 0 in page_to_chunk:
-                    target_chunk = page_to_chunk[0]
+            if page_hint is not None and int(page_hint) in page_to_chunk:
+                target_chunk = page_to_chunk[int(page_hint)]
+            elif 0 in page_to_chunk:
+                target_chunk = page_to_chunk[0]
             if target_chunk:
                 await session.execute(
                     text("update public.chunks set clause_id = :cid where id = :chunk_id"),
@@ -324,6 +374,7 @@ async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
         await _enqueue_job(session, "BAND_MAP_GRAPH", document_id, {"document_id": document_id}, f"band::{document_id}::v1")
         fire_event("extracted", {"document_id": document_id, "n": len(clause_ids)})
         await session.commit()
+        logger.info("[worker] EXTRACT_NORMALIZE done document_id=%s clauses=%d", document_id, len(clause_ids))
 
 
 async def handle_band_map_graph(job: dict) -> None:  # BAND_MAP_GRAPH

@@ -47,14 +47,55 @@ async def get_clause(clause_id: str) -> Any:
 
 
 @router.post("/clauses/{clause_id}/analyze", response_model=AnalysisOut)
-async def analyze(clause_id: str) -> Any:
+async def analyze(clause_id: str, reasoned: bool = False) -> Any:
     demo_user = get_demo_user_id()
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
         row = await _get_clause_with_doc(session, clause_id, demo_user)
         if not row:
             raise HTTPException(status_code=404, detail="Not found")
-        result = await analyze_clause(
+
+        if reasoned:
+            # Use copilot for reasoned analysis
+            from ..services.copilot_service import copilot_service
+            from ..services.extract_regex import extract_attributes
+
+            # Get clause attributes
+            derived_attrs = extract_attributes(row.text or "")
+
+            # Get reasoned analysis from copilot
+            reasoned_analysis = await copilot_service.analyze_clause(
+                clause_key=row.clause_key or "",
+                clause_title=row.title or row.clause_key or "Unknown Clause",
+                clause_text=row.text or "",
+                attributes=derived_attrs,
+                leverage=row.leverage_json or {"investor": 0.6, "founder": 0.4}
+            )
+
+            # Still do deterministic analysis for band data, but use reasoned analysis
+            result = await analyze_clause(
+                session,
+                document_id=str(row.document_id),
+                clause_id=str(row.clause_id),
+                clause_key=row.clause_key,
+                clause_text=row.text or "",
+                leverage=row.leverage_json or {"investor": 0.6, "founder": 0.4},
+                attributes={},
+            )
+
+            # Override the analysis_json with reasoned analysis
+            result["analysis_json"] = {
+                "posture": result.get("posture", "market"),
+                "band_name": result.get("band_name"),
+                "band_score": result.get("band_score"),
+                "rationale": [f"AI Analysis: {reasoned_analysis[:200]}..."],
+                "recommendation": reasoned_analysis,
+                "trades": result["analysis_json"].get("trades", [])
+            }
+
+        else:
+            # Use deterministic analysis
+            result = await analyze_clause(
             session,
             document_id=str(row.document_id),
             clause_id=str(row.clause_id),
@@ -63,6 +104,7 @@ async def analyze(clause_id: str) -> Any:
             leverage=row.leverage_json or {"investor": 0.6, "founder": 0.4},
             attributes={},
         )
+
         await session.commit()
         return result
 

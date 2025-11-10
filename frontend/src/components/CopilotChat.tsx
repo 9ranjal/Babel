@@ -4,7 +4,7 @@ import { Textarea } from './ui/Textarea';
 import { Badge } from './ui/Badge';
 import { Send, Wand2, MessageSquareText, Loader2, Building2, Upload as UploadIcon } from 'lucide-react';
 import { api } from '../lib/apiClient';
-import { upload as uploadDocument, getDocument, listClauses } from '../lib/api';
+import { upload as uploadDocument, getDocument, listClauses, getDocumentStatus } from '../lib/api';
 import { useDocStore } from '../lib/store';
 import { useToast } from '../hooks/useToast';
 import type { Message, Transaction, CopilotResponse } from '../types';
@@ -174,12 +174,36 @@ export default function CopilotChat({
     if (!file) return;
     setUploading(true);
     try {
-      const { document_id } = await uploadDocument(file);
-      showSuccess('Upload started', 'Parsing term sheet…');
-      const [doc, clauses] = await Promise.all([
-        getDocument(document_id),
-        listClauses(document_id),
-      ]);
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      const readyStatuses = new Set(['extracted', 'graphed', 'analyzed']);
+
+      const { document_id, requeued } = await uploadDocument(file);
+      setDocId(document_id);
+      showSuccess('Upload started', requeued ? 'Queued parse job, waiting for worker…' : 'Parsing term sheet…');
+      // Poll status until downstream stages complete (up to ~2 minutes)
+      let status: string = 'uploaded';
+      const statusDeadline = Date.now() + 120000; // allow full pipeline to complete
+      while (Date.now() < statusDeadline) {
+        try {
+          const s = await getDocumentStatus(document_id);
+          status = s.status;
+          if (readyStatuses.has(status)) break;
+        } catch {
+          // ignore transient failures
+        }
+        await sleep(800);
+      }
+      const doc = await getDocument(document_id);
+      status = doc?.status ?? status;
+      let clauses = await listClauses(document_id);
+      if (clauses.length === 0 && readyStatuses.has(status)) {
+        const clausesDeadline = Date.now() + 20000;
+        while (Date.now() < clausesDeadline) {
+          await sleep(1000);
+          clauses = await listClauses(document_id);
+          if (clauses.length > 0) break;
+        }
+      }
       clearAnalyses();
       setDocId(document_id);
       setDocument(doc);

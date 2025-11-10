@@ -28,9 +28,11 @@ class ClauseOut(BaseModel):
 class AnalysisOut(BaseModel):
     id: str
     clause_id: str
+    posture: Optional[str] = None
     band_name: Optional[str] = None
     band_score: Optional[float] = None
     analysis_json: Optional[dict[str, Any]] = None
+    trades: Optional[list[str]] = None
     redraft_text: Optional[str] = None
 
 

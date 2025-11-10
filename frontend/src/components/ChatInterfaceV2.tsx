@@ -4,10 +4,11 @@ import { RotateCcw, ChevronDown, Upload as UploadIcon, Loader2 } from 'lucide-re
 import MarkdownRenderer from './MarkdownRenderer';
 import CitationCard from './CitationCard';
 import { useChatSessionsContext } from '../hooks/ChatSessionsContext';
-import { upload as uploadDocument, getDocument, listClauses } from '../lib/api';
+import { upload as uploadDocument, getDocument, listClauses, getDocumentStatus } from '../lib/api';
 import { useDocStore } from '../lib/store';
 import { resolveApiUrl } from '../lib/config';
 import { useToast } from '../hooks/useToast';
+import { useChatBus, enqueueSystemMessage } from '../lib/chatBus';
 
 interface ChatInterfaceV2Props {
   module?: 'quiz' | 'notes' | 'flashcards' | 'search' | 'learn';
@@ -216,6 +217,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
     addMessage: () => {}, 
     createSession: () => '' 
   };
+  // chatBus subscription handled in useEffect via useChatBus
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -275,6 +277,21 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
       messagesContainerRef.current.scrollTop = 0;
     }
   }, [currentSession?.id]);
+
+  // Subscribe to injected chat messages (chatBus)
+  useEffect(() => {
+    if (!isMainView) return;
+    const unsub = useChatBus.getState().subscribe((msg: { role: 'user' | 'assistant' | 'system', content: string }) => {
+      let sessionId = currentSession?.id;
+      if (!sessionId) {
+        sessionId = createSession('New conversation', module);
+      }
+      const role = msg.role === 'system' ? 'assistant' : msg.role;
+      const content = msg.role === 'system' ? `[system] ${msg.content}` : msg.content;
+      addMessage(sessionId!, { role, content });
+    });
+    return () => unsub && unsub();
+  }, [isMainView, currentSession?.id, addMessage, createSession, module]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -412,19 +429,48 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
     setUploading(true);
     setIsUploading(true);
     try {
-      const { document_id } = await uploadDocument(file);
-      showSuccess('Upload started', 'Parsing term sheet…');
-      const [doc, clauses] = await Promise.all([
-        getDocument(document_id),
-        listClauses(document_id),
-      ]);
-      clearAnalyses();
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      const readyStatuses = new Set(['extracted', 'graphed', 'analyzed']);
+
+      const { document_id, requeued } = await uploadDocument(file);
       setDocId(document_id);
+      showSuccess('Upload started', requeued ? 'Queued parse job, waiting for worker…' : 'Parsing term sheet…');
+      // Poll status until downstream stages complete (up to ~2 minutes)
+      let status: string = 'uploaded';
+      const statusDeadline = Date.now() + 120000; // wait up to 2 minutes for full pipeline
+      while (Date.now() < statusDeadline) {
+        try {
+          const s = await getDocumentStatus(document_id);
+          status = s.status;
+          if (readyStatuses.has(status)) break;
+        } catch {
+          // ignore transient
+        }
+        await sleep(800);
+      }
+      const doc = await getDocument(document_id);
+      status = doc?.status ?? status;
+      let clauses = await listClauses(document_id);
+      if (clauses.length === 0 && readyStatuses.has(status)) {
+        const clausesDeadline = Date.now() + 20000;
+        while (Date.now() < clausesDeadline) {
+          await sleep(1000);
+          clauses = await listClauses(document_id);
+          if (clauses.length > 0) break;
+        }
+      }
+      clearAnalyses();
       setDocument(doc);
       setClauses(clauses);
       if (clauses.length > 0) {
         setSelected(clauses[0].id);
       }
+      // Inject brief system note into chat
+      const investor = Math.round(((doc?.leverage_json?.investor ?? 0.6) * 100));
+      const founder = Math.round(((doc?.leverage_json?.founder ?? 0.4) * 100));
+      enqueueSystemMessage(
+        `Uploaded ${doc?.filename || 'document'}. Leverage: investor ${investor}%, founder ${founder}%. Detected ${clauses.length} clauses.`
+      );
       showSuccess('Upload complete', 'Clauses extracted and ready.');
     } catch (err: any) {
       console.error('Upload failed', err);
@@ -473,7 +519,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
         type="file"
         ref={fileInputRef}
         className="hidden"
-        accept=".pdf,.doc,.docx"
+        accept=".pdf,.docx"
         onChange={handleFileSelected}
       />
       {/* Messages Area */}

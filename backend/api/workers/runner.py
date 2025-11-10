@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.core.logging import logger
 from api.core.settings import settings
 from api.services.supabase_client import get_sessionmaker
 from .handlers import HANDLERS
@@ -44,6 +45,13 @@ async def _finish_job(session: AsyncSession, job_id: str) -> None:
 
 async def _fail_job(session: AsyncSession, job: dict, error: str) -> None:
     attempts = int(job.get("attempts", 0)) + 1
+    logger.warning(
+        "worker job failure id=%s type=%s attempts=%s err=%s",
+        job.get("id"),
+        job.get("type"),
+        attempts,
+        error,
+    )
     if attempts >= 3:
         await session.execute(
             text(
@@ -74,25 +82,43 @@ async def _fail_job(session: AsyncSession, job: dict, error: str) -> None:
 async def run_worker_loop() -> None:
     S = get_sessionmaker()
     poll_seconds = max(0.05, settings.JOB_POLL_INTERVAL_MS / 1000.0)
-    while True:
-        async with S() as session:
-            job = await _claim_next_job(session)
-            if not job:
+    logger.info("worker loop starting poll=%.2fs", poll_seconds)
+    idle_since: Optional[float] = None
+    loop = asyncio.get_running_loop()
+    try:
+        while True:
+            async with S() as session:
+                job = await _claim_next_job(session)
+                if not job:
+                    await session.commit()
+                    now = loop.time()
+                    if idle_since is None:
+                        idle_since = now
+                    elif now - idle_since >= settings.WORKER_STALE_SECONDS:
+                        logger.warning("worker idle for %.1fs (no queued jobs found)", now - idle_since)
+                        idle_since = now
+                    await asyncio.sleep(poll_seconds)
+                    continue
+                idle_since = None
+                job_type = job.get("type")
+                logger.info("worker claimed job id=%s type=%s", job.get("id"), job_type)
+                handler = HANDLERS.get(job_type)
+                if not handler:
+                    logger.error("worker handler missing for type=%s id=%s", job_type, job.get("id"))
+                    await _fail_job(session, job, f"no handler for type={job_type}")
+                    await session.commit()
+                    continue
+                try:
+                    await handler(job)
+                    await _finish_job(session, job["id"])
+                    logger.info("worker finished job id=%s type=%s", job.get("id"), job_type)
+                except Exception as exc:  # pragma: no cover
+                    logger.exception("worker handler error type=%s id=%s", job_type, job.get("id"))
+                    await _fail_job(session, job, str(exc))
                 await session.commit()
-                await asyncio.sleep(poll_seconds)
-                continue
-            job_type = job.get("type")
-            handler = HANDLERS.get(job_type)
-            if not handler:
-                await _fail_job(session, job, f"no handler for type={job_type}")
-                await session.commit()
-                continue
-            try:
-                await handler(job)
-                await _finish_job(session, job["id"])
-            except Exception as exc:  # pragma: no cover
-                await _fail_job(session, job, str(exc))
-            await session.commit()
+    except asyncio.CancelledError:  # pragma: no cover
+        logger.info("worker loop cancelled")
+        raise
 
 
 def main() -> None:

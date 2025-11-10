@@ -19,7 +19,7 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
   const [viewportHeight, setViewportHeight] = useState<number>(0);
   const [devicePixelRatio, setDevicePixelRatio] = useState<number>(1);
   const [browserZoom, setBrowserZoom] = useState<number>(1);
-  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(true);
   const docId = useDocStore((s) => s.docId);
   const document = useDocStore((s) => s.document);
   const isUploading = useDocStore((s) => s.isUploading);
@@ -43,6 +43,13 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Default-collapse when a document is present or upload is in-progress
+  useEffect(() => {
+    if ((document || isUploading) && !isLeftPanelCollapsed) {
+      setIsLeftPanelCollapsed(true);
+    }
+  }, [document, isUploading, isLeftPanelCollapsed]);
 
   // Simple viewport height tracking
   useEffect(() => {

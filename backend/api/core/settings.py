@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     # Embeddings/worker flags
     EMBEDDINGS_ENABLED: bool = True
     JOB_POLL_INTERVAL_MS: int = 500
+    AUTO_START_WORKER: bool = True
+    WORKER_STALE_SECONDS: int = 120
 
 
 settings = Settings()

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Start TermCraft Frontend on Port 5003
-echo "🎨 Starting TermCraft Frontend on port 5003..."
+# Start frontend on the standard Vite dev port (3000)
+echo "🎨 Starting Babel Frontend on port 3000..."
 
 cd /Users/pranjalsingh/Project\ Simple/frontend
 
@@ -11,8 +11,8 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-# Start the Vite development server
-echo "🌐 Starting Vite dev server on http://localhost:5003"
-npm run dev
+# Start the Vite development server with explicit host/port
+echo "🌐 Starting Vite dev server on http://localhost:3000"
+npm run dev -- --host --port 3000
 
-echo "✅ Frontend server started on http://localhost:5003"
+echo "✅ Frontend server started on http://localhost:3000"

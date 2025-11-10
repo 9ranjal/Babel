@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "batna-bands.schema.json",
+  "type": "object",
+  "required": ["version", "default_leverage", "clauses"],
+  "properties": {
+    "version": { "type": "integer" },
+    "default_leverage": {
+      "type": "object",
+      "required": ["investor", "founder"],
+      "properties": {
+        "investor": { "type": "number", "minimum": 0, "maximum": 1 },
+        "founder": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["clause_key", "title", "description", "attributes", "bands", "trades", "regex_hints"],
+        "properties": {
+          "clause_key": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "founder_pov": { "type": "string" },
+          "investor_pov": { "type": "string" },
+          "links": { "type": "array", "items": { "type": "string" } },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "unit": { "type": "string" },
+              "value_type": { "type": "string", "enum": ["number", "enum", "boolean", "object", "none"] },
+              "enum_values": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "bands": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "founder_score", "investor_score"],
+              "properties": {
+                "name": { "type": "string" },
+                "range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+                "enum_match": { "type": "string" },
+                "predicate": { "type": "string" },
+                "founder_score": { "type": "number", "minimum": 0, "maximum": 1 },
+                "investor_score": { "type": "number", "minimum": 0, "maximum": 1 },
+                "rationale": { "type": "string" }
+              }
+            }
+          },
+          "trades": { "type": "array", "items": { "type": "string" } },
+          "regex_hints": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

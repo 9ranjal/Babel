@@ -37,9 +37,10 @@ export function GraphViewer({ graphJson, onSelectClause }: GraphViewerProps) {
     }
 
     const clauseNodes = graphJson.nodes.filter((node) => node.data?.type === 'clause');
-    if (clauseNodes.length === 0) {
-      return;
-    }
+    // Allow rendering even with just document node - clauses may be extracted later
+    // if (clauseNodes.length === 0) {
+    //   return;
+    // }
 
     // Transform the graph data for Cytoscape
     const elements: cytoscape.ElementDefinition[] = [
@@ -173,9 +174,10 @@ export function GraphViewer({ graphJson, onSelectClause }: GraphViewerProps) {
 
   const clauseNodes = graphJson.nodes.filter((node) => node.data?.type === 'clause');
 
-  if (clauseNodes.length === 0) {
-    return <div className="p-4 text-sm text-[color:var(--ink-500)]">No clause nodes available.</div>;
-  }
+  // Note: We now allow rendering with just document node, but show a helpful message
+  // if (clauseNodes.length === 0) {
+  //   return <div className="p-4 text-sm text-[color:var(--ink-500)]">No clause nodes available.</div>;
+  // }
 
   return (
     <div ref={containerRef} className="h-full w-full" />

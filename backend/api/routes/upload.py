@@ -15,7 +15,7 @@ from sqlalchemy.sql import bindparam
 
 from api.core.settings import get_demo_user_id
 from api.services.supabase_client import get_sessionmaker, upload_file
-
+from api.core.logging import logger
 
 router = APIRouter()
 
@@ -32,14 +32,14 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
     suffix = Path(file.filename or "").suffix.lower()
 
     is_pdf = content_type == "application/pdf" or suffix == ".pdf"
+    # Support only modern Word docs (.docx). Legacy .doc is not supported.
     is_docx = (
-        suffix in (".docx", ".doc")
+        suffix == ".docx"
         or "wordprocessingml" in content_type
-        or content_type == "application/msword"
     )
 
     if not (is_pdf or is_docx):
-        raise HTTPException(status_code=400, detail="Unsupported file type")
+        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload PDF or DOCX (not .doc).")
 
     # Size cap: 25 MB
     if len(content) > 25 * 1024 * 1024:
@@ -47,6 +47,7 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
 
     checksum = hashlib.sha256(content).hexdigest()
     demo_user = get_demo_user_id()
+    logger.info("upload start filename=%s content_type=%s checksum=%s", file.filename, content_type, checksum)
 
     # Short-circuit on (user_id, checksum)
     S = get_sessionmaker()
@@ -54,7 +55,7 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
         existing = await session.execute(
             text(
                 """
-                select id from public.documents
+                select id, mime, blob_path, checksum, status, pages_json from public.documents
                 where user_id = :uid and checksum = :cs
                 limit 1
                 """
@@ -63,7 +64,24 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
         )
         row = existing.mappings().first()
         if row:
-            return {"document_id": row["id"]}
+            # Decide whether to requeue parse job
+            should_requeue = (row.get("pages_json") is None) or (row.get("status") in ("uploaded", "failed"))
+            requeued = False
+            if should_requeue:
+                try:
+                    await _enqueue_job(
+                        session,
+                        job_type="PARSE_DOC",
+                        document_id=str(row["id"]),
+                        payload={"mime": row["mime"], "blob_path": row["blob_path"]},
+                        idempotency_key=f"parse::{row['id']}::{row['checksum']}",
+                    )
+                    await session.commit()
+                    requeued = True
+                except Exception as exc:  # pragma: no cover
+                    logger.warning("upload requeue failed document_id=%s err=%s", row["id"], exc)
+            logger.info("upload short-circuit: document_id=%s requeued=%s", row["id"], requeued)
+            return {"document_id": row["id"], "requeued": requeued}
 
     # If new, create document row and upload blob, then enqueue PARSE_DOC
     document_id = str(uuid.uuid4())
@@ -84,7 +102,8 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
         )
         await session.commit()
 
-    return {"document_id": document_id}
+    logger.info("upload queued document_id=%s blob_path=%s", document_id, blob_path)
+    return {"document_id": document_id, "requeued": False}
 
 
 async def _insert_document_min(
@@ -130,9 +149,17 @@ async def _enqueue_job(
     payload_serializable = json.loads(json.dumps(payload, default=str))
     q = text(
         """
-        insert into public.jobs (type, document_id, payload, idempotency_key, status)
-        values (:type, :document_id, :payload, :idem, 'queued')
-        on conflict (idempotency_key) do nothing
+        insert into public.jobs (type, document_id, payload, idempotency_key, status, attempts)
+        values (:type, :document_id, :payload, :idem, 'queued', 0)
+        on conflict (idempotency_key) do update
+        set status = 'queued',
+            attempts = 0,
+            last_error = null,
+            failed_at = null,
+            payload = excluded.payload,
+            document_id = excluded.document_id,
+            type = excluded.type,
+            updated_at = now()
         """
     ).bindparams(bindparam("payload", type_=JSONB))
     await session.execute(
@@ -144,5 +171,6 @@ async def _enqueue_job(
             "idem": idempotency_key,
         },
     )
+    logger.info("enqueue job type=%s doc=%s idem=%s", job_type, document_id, idempotency_key)
 
 

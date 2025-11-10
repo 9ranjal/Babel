@@ -1,11 +1,15 @@
 import { resolveApiUrl } from './config'
 
 async function json<T>(res: Response): Promise<T> {
-  if (!res.ok) throw new Error(await res.text())
+  if (!res.ok) {
+    const body = await res.text()
+    console.error('[api] request failed', { url: res.url, status: res.status, body })
+    throw new Error(body || `HTTP ${res.status}`)
+  }
   return (await res.json()) as T
 }
 
-export async function upload(file: File): Promise<{ document_id: string }> {
+export async function upload(file: File): Promise<{ document_id: string; requeued?: boolean }> {
   const fd = new FormData()
   fd.append('file', file)
   const url = resolveApiUrl('/upload')
@@ -13,37 +17,68 @@ export async function upload(file: File): Promise<{ document_id: string }> {
     console.debug('[api] upload ->', url)
   }
   const res = await fetch(url, { method: 'POST', body: fd })
-  return json(res)
+  const result = await json<{ document_id: string; requeued?: boolean }>(res)
+  if (import.meta.env.DEV) {
+    console.debug('[api] upload <-', { documentId: result.document_id, requeued: result.requeued })
+  }
+  return result
 }
 
 export async function getDocument(id: string) {
   const res = await fetch(resolveApiUrl(`/documents/${id}`))
-  return json<any>(res)
+  const doc = await json<any>(res)
+  if (import.meta.env.DEV) {
+    console.debug('[api] getDocument', { id, status: doc?.status, clauseCount: doc?.clauses?.length })
+  }
+  return doc
 }
 
 export async function getDocumentStatus(id: string): Promise<{ status: string }> {
   const res = await fetch(resolveApiUrl(`/documents/${id}/status`))
-  return json<{ status: string }>(res)
+  const status = await json<{ status: string }>(res)
+  if (import.meta.env.DEV) {
+    console.debug('[api] getDocumentStatus', { id, status: status.status })
+  }
+  return status
 }
 
 export async function listClauses(id: string) {
   const res = await fetch(resolveApiUrl(`/documents/${id}/clauses`))
-  return json<any[]>(res)
+  const clauses = await json<any[]>(res)
+  if (import.meta.env.DEV) {
+    console.debug('[api] listClauses', { id, count: clauses.length })
+  }
+  return clauses
 }
 
 export async function getClause(id: string) {
   const res = await fetch(resolveApiUrl(`/clauses/${id}`))
-  return json<any>(res)
+  const clause = await json<any>(res)
+  if (import.meta.env.DEV) {
+    console.debug('[api] getClause', { id, hasText: Boolean(clause?.text) })
+  }
+  return clause
 }
 
-export async function analyzeClause(id: string) {
-  const res = await fetch(resolveApiUrl(`/clauses/${id}/analyze`), { method: 'POST' })
-  return json<any>(res)
+export async function analyzeClause(id: string, reasoned: boolean = false) {
+  const url = reasoned
+    ? resolveApiUrl(`/clauses/${id}/analyze?reasoned=true`)
+    : resolveApiUrl(`/clauses/${id}/analyze`)
+  const res = await fetch(url, { method: 'POST' })
+  const analysis = await json<any>(res)
+  if (import.meta.env.DEV) {
+    console.debug('[api] analyzeClause', { id, reasoned, band: analysis?.band_name })
+  }
+  return analysis
 }
 
 export async function redraftClause(id: string) {
   const res = await fetch(resolveApiUrl(`/clauses/${id}/redraft`), { method: 'POST' })
-  return json<any>(res)
+  const redraft = await json<any>(res)
+  if (import.meta.env.DEV) {
+    console.debug('[api] redraftClause', { id, hasRedraft: Boolean(redraft?.redraft_text) })
+  }
+  return redraft
 }
 
 

@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Button } from '../ui/Button';
 import { useDocStore } from '../../lib/store';
 import { getRedlineMarkup } from '../../packages/diff/redline';
+// Analysis panel removed; AI analysis now appears in chat
 
 type SpanMap = Record<
   string,
