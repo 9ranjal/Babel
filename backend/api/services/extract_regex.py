@@ -7,20 +7,58 @@ from .numbering import strip_leading_numbering
 from .sectionizer import sectionize
 
 
-CLAUSE_KEYS = [
-    "parties",
-    "investment_amount",
-    "valuation",
-    "price_per_share",
+_CLAUSE_KEY_ORDERED = [
+    # Success-list focus
+    "company",
+    "indian_subsidiary",
+    "founders",
+    "new_investor",
+    "existing_investors",
     "securities",
+    "investment_amount",
+    "new_investor_ownership",
+    "pre_money_valuation",
+    "definitive_documents",
+    "capitalization",
+    "price_per_share",
+    "subscription_right",
     "use_of_proceeds",
     "closing_conditions",
     "reps_warranties",
+    "existing_shareholder_rights",
+    "new_investor_director",
+    "shareholders_meetings",
+    "reserved_matters",
+    "dividend",
+    "liquidation_preference",
+    "exit_rights",
+    "conversion",
+    "voting_rights",
+    "anti_dilution",
+    "registration_rights",
+    "preemptive_rights",
+    "right_of_first_refusal",
+    "tag_along",
+    "transfers_by_founders",
+    "drag_along",
+    "new_investor_transfer_rights",
+    "event_of_default",
+    "information_inspection_rights",
+    "other_rights",
+    "non_compete_non_solicit",
+    "rights_in_indian_subsidiary",
+    "expenses",
+    "governing_law",
+    "dispute_resolution",
+    "counterparts",
+    "termination",
+    # Legacy/existing keys retained for compatibility
+    "parties",
+    "valuation",
     "covenants",
     "board",
     "observer",
     "voting",
-    "reserved_matters",
     "information_rights",
     "audit_rights",
     "anti_dilution",
@@ -28,10 +66,6 @@ CLAUSE_KEYS = [
     "rofo",
     "rofr",
     "co_sale",
-    "drag_along",
-    "tag_along",
-    "liquidation_preference",
-    "dividend",
     "redemption",
     "option_pool",
     "founder_vesting",
@@ -41,49 +75,79 @@ CLAUSE_KEYS = [
     "exclusivity",
     "break_fee",
     "confidentiality",
-    "governing_law",
-    "dispute_resolution",
     "notices",
     "costs_expenses",
     "timeline",
     "exit",
 ]
 
+CLAUSE_KEYS = list(dict.fromkeys(_CLAUSE_KEY_ORDERED))
+
 HEAD_KEYWORDS: Dict[str, List[str]] = {
-    "parties": ["parties", "counterparties"],
+    # Success list focus
+    "company": ["company"],
+    "indian_subsidiary": ["indian subsidiary"],
+    "founders": ["founders"],
+    "new_investor": ["new investor", "investors"],
+    "existing_investors": ["existing investors"],
     "investment_amount": [
         "investment amount",
         "subscription amount",
         "aggregate consideration",
         "amount invested",
     ],
-    "valuation": ["valuation", "pre-money", "post-money"],
+    "new_investor_ownership": ["investors' ownership", "new investor ownership"],
+    "pre_money_valuation": ["pre-money valuation", "valuation"],
+    "definitive_documents": ["definitive documents", "definitive docs"],
+    "capitalization": ["capitalization", "shareholding pattern"],
     "price_per_share": ["price per share", "pps", "subscription price"],
-    "securities": ["securities", "class of securities", "instrument", "security"],
+    "subscription_right": ["subscription right"],
+    "securities": ["securities", "class h preference shares", "instrument", "security"],
     "use_of_proceeds": ["use of proceeds", "application of funds"],
     "closing_conditions": ["conditions precedent", "conditions to closing", "closing conditions"],
-    "reps_warranties": ["representations", "warranties", "reps and warranties"],
-    "covenants": ["covenants", "affirmative covenants", "negative covenants"],
-    "observer": ["observer", "board observer"],
-    "board": ["board", "board of directors", "governance"],
-    "voting": ["voting", "shareholder voting", "consents"],
+    "reps_warranties": ["representations", "warranties", "indemnification"],
+    "existing_shareholder_rights": ["existing shareholder rights", "existing investor rights"],
+    "new_investor_director": ["investor director", "investor directors"],
+    "shareholders_meetings": ["shareholders' meetings", "shareholder meetings"],
     "reserved_matters": [
         "reserved matters",
         "protective provisions",
         "affirmative vote matters",
         "matters requiring consent",
     ],
+    "dividend": ["dividend", "dividends", "coupon"],
+    "liquidation_preference": ["liquidation preference", "distribution waterfall"],
+    "exit_rights": ["exit rights", "exit"],
+    "conversion": ["conversion"],
+    "voting_rights": ["voting rights", "voting"],
+    "anti_dilution": ["anti-dilution", "price protection", "down round protection"],
+    "registration_rights": ["registration rights", "registration"],
+    "preemptive_rights": ["preemptive rights", "pro rata rights", "pre-emptive rights"],
+    "right_of_first_refusal": ["right of first refusal", "rofr"],
+    "tag_along": ["tag-along", "tag along", "co-sale"],
+    "transfers_by_founders": ["transfers by the founders", "founder transfers", "employment of founders"],
+    "drag_along": ["drag-along", "drag along"],
+    "new_investor_transfer_rights": ["new investor's right to transfer", "investor transfer rights"],
+    "event_of_default": ["event of default", "default"],
+    "information_inspection_rights": ["information and inspection rights", "information rights", "inspection rights"],
+    "other_rights": ["other rights"],
+    "non_compete_non_solicit": ["non-compete", "non-solicit", "non solicitation"],
+    "rights_in_indian_subsidiary": ["rights in indian subsidiary"],
+    "expenses": ["expenses", "costs", "fees"],
+    "governing_law": ["governing law", "applicable law"],
+    "dispute_resolution": ["dispute resolution", "arbitration", "jurisdiction"],
+    "counterparts": ["counterparts"],
+    "termination": ["termination"],
+    # Legacy/backwards compatibility
+    "parties": ["parties", "counterparties"],
+    "covenants": ["covenants", "affirmative covenants", "negative covenants"],
+    "board": ["board", "board of directors", "governance"],
+    "observer": ["observer", "board observer"],
     "information_rights": ["information rights", "reporting", "financial information"],
     "audit_rights": ["audit rights", "inspection", "books and records"],
-    "anti_dilution": ["anti-dilution", "price protection", "down round protection"],
     "preemptive_pro_rata": ["pre-emptive", "preemptive", "pro rata", "right of first offer on new issuance"],
     "rofo": ["right of first offer", "rofo", "first offer"],
-    "rofr": ["right of first refusal", "rofr", "purchase option on transfer"],
     "co_sale": ["co-sale", "tag along on secondary", "co sale"],
-    "drag_along": ["drag-along", "drag along"],
-    "tag_along": ["tag-along", "tag along"],
-    "liquidation_preference": ["liquidation preference", "preference on sale", "distribution waterfall"],
-    "dividend": ["dividend", "coupon"],
     "redemption": ["redemption", "buyback of shares"],
     "option_pool": ["option pool", "esop", "employee stock option"],
     "founder_vesting": ["vesting", "founder vesting", "cliff", "reverse vesting"],
@@ -93,15 +157,158 @@ HEAD_KEYWORDS: Dict[str, List[str]] = {
     "exclusivity": ["exclusivity", "no-shop", "no solicitation"],
     "break_fee": ["break fee", "termination fee", "expense reimbursement on termination"],
     "confidentiality": ["confidentiality", "non-disclosure", "nda"],
-    "governing_law": ["governing law", "applicable law"],
-    "dispute_resolution": ["dispute resolution", "arbitration", "jurisdiction"],
     "notices": ["notices", "notice"],
     "costs_expenses": ["costs", "expenses", "fees"],
     "timeline": ["timeline", "closing timeline", "completion schedule"],
     "exit": ["exit", "liquidity event", "qipo"],
 }
 
+_CANONICAL_HEADING_RAW_MAP = {
+    "company": "company",
+    "indian subsidiary": "indian_subsidiary",
+    "founders": "founders",
+    "investors": "new_investor",
+    "new investor": "new_investor",
+    "existing investors": "existing_investors",
+    "investment amount": "investment_amount",
+    "investors ownership": "new_investor_ownership",
+    "subscription right": "subscription_right",
+    "pre-money valuation": "pre_money_valuation",
+    "valuation": "pre_money_valuation",
+    "definitive documents": "definitive_documents",
+    "capitalization": "capitalization",
+    "shareholding pattern": "capitalization",
+    "price per share": "price_per_share",
+    "use of proceeds": "use_of_proceeds",
+    "closing conditions": "closing_conditions",
+    "representations & warranties; indemnification": "reps_warranties",
+    "representations and warranties": "reps_warranties",
+    "investor directors": "new_investor_director",
+    "investor director": "new_investor_director",
+    "shareholders meetings": "shareholders_meetings",
+    "reserved matters": "reserved_matters",
+    "protective provisions": "reserved_matters",
+    "dividends": "dividend",
+    "liquidation preference": "liquidation_preference",
+    "conversion": "conversion",
+    "voting rights": "voting_rights",
+    "voting": "voting_rights",
+    "anti-dilution": "anti_dilution",
+    "registration rights": "registration_rights",
+    "preemptive rights": "preemptive_rights",
+    "pre-emptive rights": "preemptive_rights",
+    "right of first refusal and co-sale": "right_of_first_refusal",
+    "right of first refusal": "right_of_first_refusal",
+    "tag along": "tag_along",
+    "drag-along": "drag_along",
+    "issuance or transfer to ant competitors": "new_investor_transfer_rights",
+    "ant competitors": "non_compete_non_solicit",
+    "transactions with ant competitors": "non_compete_non_solicit",
+    "employment of founders and lock-up": "transfers_by_founders",
+    "founder lock-up": "transfers_by_founders",
+    "new investor's right to transfer": "new_investor_transfer_rights",
+    "event of default": "event_of_default",
+    "information and inspection rights": "information_inspection_rights",
+    "other rights": "other_rights",
+    "non-compete and non-solicit": "non_compete_non_solicit",
+    "rights in indian subsidiary": "rights_in_indian_subsidiary",
+    "expenses": "expenses",
+    "governing law and dispute resolution": "dispute_resolution",
+    "governing law": "governing_law",
+    "dispute resolution": "dispute_resolution",
+    "counterparts": "counterparts",
+    "termination": "termination",
+}
+
+
+def _normalize_heading(text: str) -> str:
+    if not text:
+        return ""
+    normalized = text.replace("\u2019", "'").replace("\u2018", "'")
+    normalized = normalized.replace("\u201c", '"').replace("\u201d", '"')
+    normalized = normalized.replace("：", ":")
+    normalized = normalized.replace("&", " and ")
+    normalized = normalized.strip().lower()
+    normalized = normalized.rstrip(":")
+    normalized = re.sub(r"[^a-z0-9\s'/-]", " ", normalized)
+    normalized = " ".join(normalized.split())
+    return normalized
+
+
+CANONICAL_HEADING_MAP = {
+    _normalize_heading(raw): key for raw, key in _CANONICAL_HEADING_RAW_MAP.items() if _normalize_heading(raw)
+}
+
+_HEAD_EXACT_LOOKUP: Dict[str, str] = {}
+for _key, _keywords in HEAD_KEYWORDS.items():
+    for _kw in _keywords:
+        _norm = _normalize_heading(_kw)
+        if _norm:
+            _HEAD_EXACT_LOOKUP.setdefault(_norm, _key)
+
+
+def _is_heading_candidate(text: str) -> bool:
+    raw = (text or "").strip()
+    if not raw:
+        return False
+    normalized = _normalize_heading(raw)
+    if not normalized:
+        return False
+    if normalized in CANONICAL_HEADING_MAP:
+        return True
+    if normalized in _HEAD_EXACT_LOOKUP:
+        return True
+    if raw.endswith(":") or raw.endswith("："):
+        if len(normalized.split()) <= 12:
+            return True
+    if any(c.isalpha() for c in raw) and raw == raw.upper() and len(normalized.split()) <= 6:
+        return True
+    return False
+
+
+_KEY_REMAP = {
+    "information_rights": "information_inspection_rights",
+    "audit_rights": "information_inspection_rights",
+    "costs_expenses": "expenses",
+    "rofr": "right_of_first_refusal",
+    "preemptive_pro_rata": "preemptive_rights",
+    "voting": "voting_rights",
+}
+
+
+def _extra_clause_keys(normalized_heading: str, primary_key: str | None, text: str) -> List[str]:
+    extras: List[str] = []
+    if normalized_heading == "right of first refusal and co-sale":
+        extras.append("tag_along")
+    if normalized_heading == "governing law and dispute resolution":
+        extras.extend(["governing_law", "dispute_resolution"])
+    if normalized_heading in {"employment of founders and lock-up", "founder lock-up"}:
+        extras.append("non_compete_non_solicit")
+    if normalized_heading in {"ant competitors", "transactions with ant competitors"}:
+        extras.append("non_compete_non_solicit")
+    if primary_key == "transfers_by_founders" and "non-compete" in text.lower():
+        extras.append("non_compete_non_solicit")
+    for key, patterns in SUPPLEMENTAL_HINTS.items():
+        if key == primary_key:
+            continue
+        if any(pattern.search(text) for pattern in patterns):
+            extras.append(key)
+    dedup: List[str] = []
+    for key in extras:
+        canonical = _KEY_REMAP.get(key, key)
+        if canonical == primary_key:
+            continue
+        if canonical not in dedup:
+            dedup.append(canonical)
+    return dedup
+
 BODY_HINTS: Dict[str, List[re.Pattern[str]]] = {
+    "registration_rights": [
+        re.compile(r"\bregistration rights?\b", re.I),
+    ],
+    "event_of_default": [
+        re.compile(r"\bevent of default\b", re.I),
+    ],
     "exclusivity": [
         re.compile(r"\b(exclusive|exclusivity|no-?shop|no solicitation)\b", re.I),
         re.compile(r"\b(\d{1,3})\s*(?:day|days|business days)\b", re.I),
@@ -218,6 +425,17 @@ BODY_HINTS: Dict[str, List[re.Pattern[str]]] = {
         re.compile(r"\bexit\b|\bliquidity event\b|\bqipo\b", re.I),
         re.compile(r"\b(\d{1,2})\s*(?:years|yrs)\b", re.I),
     ],
+}
+
+BODY_HINTS.setdefault("voting_rights", BODY_HINTS.get("voting", []))
+BODY_HINTS.setdefault("preemptive_rights", BODY_HINTS.get("preemptive_pro_rata", []))
+BODY_HINTS.setdefault("right_of_first_refusal", BODY_HINTS.get("rofr", []))
+BODY_HINTS.setdefault("registration_rights", [])
+BODY_HINTS.setdefault("information_inspection_rights", BODY_HINTS.get("information_rights", []) + BODY_HINTS.get("audit_rights", []))
+BODY_HINTS.setdefault("expenses", BODY_HINTS.get("costs_expenses", []))
+
+SUPPLEMENTAL_HINTS: Dict[str, List[re.Pattern[str]]] = {
+    "definitive_documents": [re.compile(r"\bdefinitive document", re.I)],
 }
 
 _CURRENCY = r"(USD|INR|GBP|₹|£|\$)"
@@ -364,11 +582,16 @@ def extract_attributes(text: str) -> Dict[str, Any]:
 
 
 def _classify_title(title: str) -> str | None:
-    normalized = (title or "").strip().lower()
+    normalized = _normalize_heading(title)
     if not normalized:
         return None
+    if normalized in CANONICAL_HEADING_MAP:
+        return CANONICAL_HEADING_MAP[normalized]
+    if normalized in _HEAD_EXACT_LOOKUP:
+        return _HEAD_EXACT_LOOKUP[normalized]
+    lowered = (title or "").strip().lower()
     for key, keywords in HEAD_KEYWORDS.items():
-        if any(keyword in normalized for keyword in keywords):
+        if any(keyword in lowered for keyword in keywords):
             return key
     return None
 
@@ -384,62 +607,180 @@ def _classify_body(text: str) -> str | None:
 
 def _pick_clause_key(title: str, text: str) -> str | None:
     key = _classify_title(title)
+    if not key:
+        key = _classify_body(text)
     if key:
-        return key
-    return _classify_body(text)
+        return _KEY_REMAP.get(key, key)
+    return None
 
 
 def regex_extract_from_docling(pages_json: Dict[str, Any]) -> List[Dict[str, Any]]:
     blocks = pages_json.get("blocks") or []
-    sections = sectionize(blocks)
     snippets: List[Dict[str, Any]] = []
-    for section in sections:
-        clause_key = _pick_clause_key(section.get("title", ""), section.get("text", ""))
-        if not clause_key:
+    emitted: set[tuple[str, str]] = set()
+
+    # Phase 1: Strict table row mapping (prefer exact labels from left column)
+    # Build per-row heading/value seen in parse_docling table flattening
+    rows: Dict[int, Dict[str, Any]] = {}
+    for b in blocks:
+        meta = b.get("meta") or {}
+        if "table_row" not in meta:
             continue
-        attrs = extract_attributes(section.get("text", ""))
-        snippets.append(
-            {
-                "clause_key": clause_key,
-                "title": section.get("title") or clause_key.replace("_", " ").title(),
-                "text": section.get("text") or "",
-                "block_ids": section.get("block_ids") or [],
-                "page_hint": section.get("page_start"),
-                "attributes": attrs,
-                "source": "docling",
-            }
-        )
+        row_idx = int(meta.get("table_row", -1))
+        if row_idx < 0:
+            continue
+        col = meta.get("column")
+        rows.setdefault(row_idx, {"heading": None, "value": None, "block_ids": []})
+        rows[row_idx]["block_ids"].append(b.get("id"))
+        if col == 0 and b.get("type") == "heading":
+            rows[row_idx]["heading"] = b.get("text") or ""
+        elif col == 1 and b.get("type") == "paragraph":
+            rows[row_idx]["value"] = b.get("text") or ""
+
+    for row_idx, data in sorted(rows.items()):
+        heading_raw = (data.get("heading") or "").strip()
+        value_text = (data.get("value") or "").strip()
+        if not heading_raw or not value_text:
+            continue
+        norm_head = _normalize_heading(heading_raw)
+        # Direct canonical lookup from heading maps
+        keys: List[str] = []
+        primary = CANONICAL_HEADING_MAP.get(norm_head) or _HEAD_EXACT_LOOKUP.get(norm_head)
+        if primary:
+            keys.append(_KEY_REMAP.get(primary, primary))
+        # Augment with extras for composite headings
+        keys.extend(_extra_clause_keys(norm_head, primary, value_text))
+        # Deduplicate and emit
+        for key in dict.fromkeys(keys):
+            dedup_key = (key, value_text)
+            if key and dedup_key not in emitted:
+                emitted.add(dedup_key)
+                snippets.append(
+                    {
+                        "clause_key": key,
+                        "title": heading_raw.rstrip(":") or key.replace("_", " ").title(),
+                        "text": value_text,
+                        "block_ids": data.get("block_ids") or [],
+                        "page_hint": None,
+                        "attributes": extract_attributes(value_text),
+                        "source": "docling_table",
+                    }
+                )
+
+    # Phase 2: Sectionized headings/body for narrative parts
+    sections = sectionize(blocks)
+    for section in sections:
+        title = section.get("title", "")
+        body_text = section.get("text", "") or ""
+        normalized_title = _normalize_heading(title)
+        clause_key = _pick_clause_key(title, body_text)
+        keys2: List[str] = []
+        if clause_key:
+            keys2.append(clause_key)
+        keys2.extend(_extra_clause_keys(normalized_title, clause_key, body_text))
+        if not keys2:
+            continue
+        attrs = extract_attributes(body_text)
+        snippet_text = body_text
+        snippet_title = title or None
+        for key in dict.fromkeys(keys2):
+            dedup_key = (key, snippet_text)
+            if dedup_key in emitted:
+                continue
+            emitted.add(dedup_key)
+            snippets.append(
+                {
+                    "clause_key": key,
+                    "title": snippet_title or key.replace("_", " ").title(),
+                    "text": snippet_text,
+                    "block_ids": section.get("block_ids") or [],
+                    "page_hint": section.get("page_start"),
+                    "attributes": attrs,
+                    "source": "docling",
+                }
+            )
     return snippets
 
 
 def regex_extract_plaintext(text_plain: str) -> List[Dict[str, Any]]:
-    chunks = re.split(r"\n{2,}", text_plain or "")
+    blob = (text_plain or "").replace("\r\n", "\n").replace("\u3000", " ").replace("：", ":")
+    paragraphs = [p.strip() for p in re.split(r"\n{2,}", blob) if p.strip()]
+
+    sections: List[Dict[str, Any]] = []
+    preface: List[str] = []
+    current_title: str | None = None
+    current_body: List[str] = []
+
+    def _flush_section() -> None:
+        nonlocal current_title, current_body
+        if current_title and current_body:
+            sections.append({"title": current_title.strip(), "body": current_body[:]})
+        current_body = []
+
+    for para in paragraphs:
+        if _is_heading_candidate(para):
+            _flush_section()
+            current_title = para.strip()
+        else:
+            if current_title:
+                current_body.append(para.strip())
+            else:
+                preface.append(para.strip())
+
+    _flush_section()
+
     results: List[Dict[str, Any]] = []
-    for chunk in chunks:
-        if not chunk.strip():
+    emitted: set[tuple[str, str]] = set()
+    for section in sections:
+        title_raw = section["title"]
+        body_parts = section["body"]
+        body_text = "\n\n".join(body_parts).strip()
+        if not body_text:
             continue
-        first_line = chunk.split("\n", 1)[0]
-        title, _ = strip_leading_numbering(first_line)
-        clause_key = _pick_clause_key(title, chunk)
-        if not clause_key:
+        normalized_title = _normalize_heading(title_raw)
+        if normalized_title in {"term sheet", "investment terms"}:
             continue
-        # Minimal-length filter: drop label-only micro-snippets unless attributes are present
-        blob = chunk.strip()
-        word_count = len(blob.split())
-        char_count = len(blob)
-        attrs = extract_attributes(chunk)
-        if (word_count < 3 or char_count < 20) and not attrs:
+        clause_key = _pick_clause_key(title_raw, body_text)
+        keys: List[str] = []
+        if clause_key:
+            keys.append(clause_key)
+        keys.extend(_extra_clause_keys(normalized_title, clause_key, body_text))
+        if not keys:
             continue
-        results.append(
-            {
-                "clause_key": clause_key,
-                "title": title or clause_key.replace("_", " ").title(),
-                "text": chunk,
-                "block_ids": [],
-                "page_hint": None,
-                "attributes": attrs,
-                "source": "plaintext",
-            }
-        )
+        attrs = extract_attributes(body_text)
+        snippet_title = title_raw.rstrip(":")
+        snippet_text = f"{snippet_title}\n\n{body_text}".strip()
+        for key in keys:
+            key_text = (key, snippet_text)
+            if key_text in emitted:
+                continue
+            emitted.add(key_text)
+            results.append(
+                {
+                    "clause_key": key,
+                    "title": snippet_title or key.replace("_", " ").title(),
+                    "text": snippet_text,
+                    "block_ids": [],
+                    "page_hint": None,
+                    "attributes": attrs,
+                    "source": "plaintext",
+                }
+            )
+
+    if not results and preface:
+        preface_text = "\n\n".join(preface).strip()
+        if preface_text:
+            results.append(
+                {
+                    "clause_key": "document_overview",
+                    "title": "Document Overview",
+                    "text": preface_text[:500] + ("..." if len(preface_text) > 500 else ""),
+                    "block_ids": [],
+                    "page_hint": None,
+                    "attributes": {},
+                    "source": "plaintext",
+                }
+            )
+
     return results
 

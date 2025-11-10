@@ -13,7 +13,13 @@ def strip_leading_numbering(s: Optional[str]) -> Tuple[str, Optional[str]]:
     match = _NUM_PAT.match(text)
     if not match:
         return text, None
+    matched = match.group(0)
+    # Guard against false positives where a leading roman numeral or letter is part of the word
+    if matched and matched[-1].isalpha():
+        remainder = text[match.end() :]
+        if remainder and remainder[:1].isalpha():
+            return text, None
     stripped = text[match.end() :].lstrip()
-    return stripped, match.group(0).strip()
+    return stripped, matched.strip()
 
 
