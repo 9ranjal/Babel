@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 import { useDocStore } from '../../lib/store';
 import { Button } from '../ui/Button';
@@ -57,7 +57,6 @@ export function ViewerPane() {
           onSelectClause={(id) => {
             if (id) {
               setSelected(id);
-              // Trigger AI analysis in chat
               analyzeClauseInChat(id).catch(() => {
                 // swallow chat errors to avoid breaking UI
               });

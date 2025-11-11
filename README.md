@@ -1,15 +1,15 @@
 # 🚀 Babel AI - VC Lawyer Copilot & Negotiation Engine
 
-A sophisticated AI-powered negotiation engine with an intelligent VC lawyer copilot that provides data-driven advice based on actual BATNA (Best Alternative To Negotiated Agreement) analysis. Built with FastAPI, React, and Supabase.
+A sophisticated AI-powered negotiation engine with an intelligent VC lawyer copilot that provides data-driven advice based on actual ZOPA (Zone of Possible Agreement) analysis. Built with FastAPI, React, and Supabase.
 
 ## 🎯 **Overview**
 
-Babel AI combines a **transaction-first negotiation engine** with an **intelligent VC lawyer copilot** that provides personalized, data-driven advice. The system uses real persona leverage, BATNA bands, and market data to generate intelligent responses rather than generic guidance.
+Babel AI combines a **transaction-first negotiation engine** with an **intelligent VC lawyer copilot** that provides personalized, data-driven advice. The system uses real persona leverage, ZOPA bands, and market data to generate intelligent responses rather than generic guidance.
 
 ### **Key Features**
-- **🧠 Intelligent VC Lawyer Copilot**: BATNA-aware AI that provides personalized advice
+- **🧠 Intelligent VC Lawyer Copilot**: ZOPA-aware AI that provides personalized advice
 - **📊 Transaction-First Architecture**: Decoupled personas from users, transaction-scoped negotiations
-- **⚖️ BATNA-Driven Intelligence**: Real leverage analysis and negotiation positioning
+- **⚖️ ZOPA-Driven Intelligence**: Real leverage analysis and negotiation positioning
 - **🎯 Modular Prompt System**: Centralized, maintainable AI prompt management
 - **🔄 Real-Time Negotiation**: Live term sheet generation with redlining
 - **📈 Market Integration**: Real guidance and benchmarks from industry data
@@ -24,11 +24,11 @@ Babel AI combines a **transaction-first negotiation engine** with an **intellige
 ```
 Frontend (React + TypeScript) ←→ Backend (FastAPI + Python) ←→ Database (Supabase)
                                     ↓
-                            VC Lawyer Copilot (BATNA-Aware AI)
+                            VC Lawyer Copilot (ZOPA-Aware AI)
 ```
 
 ### **🧠 Copilot Intelligence Layer**
-- **BATNA-Aware Prompts**: AI responses based on real persona leverage and preferences
+- **ZOPA-Aware Prompts**: AI responses based on real persona leverage and preferences
 - **Modular Prompt System**: Centralized prompt management with intent-specific handlers
 - **Context Service**: Transaction-aware persona and leverage analysis
 - **Intent Detection**: Smart routing between explain, revise, simulate, and general chat
@@ -37,7 +37,7 @@ Frontend (React + TypeScript) ←→ Backend (FastAPI + Python) ←→ Database 
 - **Orchestrator**: Coordinates the entire negotiation flow
 - **Skills Layer**: Clause-specific logic (exclusivity, vesting, preemption)
 - **Solver**: Nash-lite compromise algorithm with leverage weighting
-- **BATNA Engine**: Computes leverage, weights, and BATNA bands for personas
+- **ZOPA Engine**: Computes leverage, weights, and ZOPA bands for personas
 - **Policy Engine**: Constraint enforcement and validation
 - **Market Engine**: Guidance and benchmark integration
 - **RAG Retriever**: Citation and explanation system
@@ -46,13 +46,13 @@ Frontend (React + TypeScript) ←→ Backend (FastAPI + Python) ←→ Database 
 - **Transactions**: Root entity linking users, personas, and negotiations
 - **Personas**: Decoupled from users, linked to transactions
 - **Negotiation Sessions**: Transaction-scoped with persona context
-- **BATNA Computation**: Real-time leverage and preference analysis
+- **ZOPA Computation**: Real-time leverage and preference analysis
 
 ### **🎨 Frontend Components**
-- **CopilotChat**: Intelligent VC lawyer interface with BATNA awareness
+- **CopilotChat**: Intelligent VC lawyer interface with ZOPA awareness
 - **TermSheetEditor**: Live term sheet editing with redlining
 - **TransactionSelector**: Transaction management interface
-- **PersonaIntake**: Form-based persona creation with real-time BATNA
+- **PersonaIntake**: Form-based persona creation with real-time ZOPA
 - **useNegotiation Hook**: Type-safe API integration
 
 ---
@@ -112,7 +112,7 @@ npm start
 - **Frontend**: Visit `http://localhost:5003` for the main interface
 - **Backend API**: Visit `http://localhost:5002/docs` for API documentation
 - **Copilot Test**: Try `http://localhost:5002/api/copilot/prompts` to see available intents
-- **BATNA Test**: Try `http://localhost:5002/api/copilot/test-batna/{transaction_id}` for BATNA-aware prompts
+- **ZOPA Test**: Try `http://localhost:5002/api/copilot/test-batna/{transaction_id}` for ZOPA-aware prompts
 
 ---
 
@@ -121,18 +121,18 @@ npm start
 ### **Intelligent Intent Detection**
 The copilot automatically detects user intent and routes to appropriate handlers:
 
-- **`explain_clause`**: "Explain liquidation preference" → BATNA-aware clause explanation
-- **`revise_clause`**: "Change exclusivity to 60 days" → Analysis based on actual BATNA bands  
+- **`explain_clause`**: "Explain liquidation preference" → ZOPA-aware clause explanation
+- **`revise_clause`**: "Change exclusivity to 60 days" → Analysis based on actual ZOPA bands  
 - **`simulate_trade`**: "Trade exclusivity for board seats" → Trade simulation with real leverage data
 - **`general_chat`**: "What should I prioritize?" → Personalized advice based on actual persona leverage
 
-### **BATNA-Aware Intelligence**
+### **ZOPA-Aware Intelligence**
 The copilot provides data-driven advice using real negotiation data:
 
 ```json
 {
   "leverage_analysis": "Founder has LOW leverage (0.30) with short runway",
-  "batna_bands": "Founder's BATNA: 30 days exclusivity (weight: 0.80)",
+  "zopa_bands": "Founder's ZOPA: 30 days exclusivity (weight: 0.80)",
   "positioning": "Time pressure may limit options",
   "market_context": "Market standard: 30-90 days"
 }
@@ -141,34 +141,34 @@ The copilot provides data-driven advice using real negotiation data:
 ### **Modular Prompt Architecture**
 - **Centralized Prompts**: All AI prompts managed in one place
 - **Intent-Specific Handlers**: Specialized logic for each copilot function
-- **BATNA Integration**: Real persona data drives AI responses
+- **ZOPA Integration**: Real persona data drives AI responses
 - **Context Awareness**: Transaction-scoped persona and leverage analysis
 
 ### **API Endpoints**
 - `GET /api/copilot/prompts` - View all available prompts and intents
 - `POST /api/copilot/chat` - General VC lawyer consultation
 - `POST /api/copilot/intent` - Intent-specific responses
-- `GET /api/copilot/test-batna/{transaction_id}` - Test BATNA-aware prompts
+- `GET /api/copilot/test-batna/{transaction_id}` - Test ZOPA-aware prompts
 
 ---
 
 ## 📊 **Current Status**
 
 ### ✅ **Completed (90%)**
-- **🧠 VC Lawyer Copilot**: BATNA-aware AI with modular prompt system
+- **🧠 VC Lawyer Copilot**: ZOPA-aware AI with modular prompt system
 - **📊 Transaction-First Architecture**: Decoupled personas from users
-- **⚖️ BATNA Engine**: Real leverage computation and negotiation positioning
+- **⚖️ ZOPA Engine**: Real leverage computation and negotiation positioning
 - **🎯 Modular Prompt System**: Centralized, maintainable AI prompt management
 - **🔄 Backend Engine**: Complete negotiation system with 17 files
 - **🗄️ Database Schema**: Full Supabase schema with RLS and transaction support
 - **🌐 API Endpoints**: 8 REST endpoints for negotiation and copilot
 - **🎨 Frontend Components**: TypeScript React components
-- **🧪 Testing**: Manual testing with real personas and BATNA integration
+- **🧪 Testing**: Manual testing with real personas and ZOPA integration
 
 ### 🔄 **In Progress (10%)**
 - **🎨 Frontend Integration**: Connecting React components to backend
 - **🔄 Real-Time Updates**: Live term sheet editing with redlining
-- **📝 Persona Intake**: Form-based persona creation with real-time BATNA
+- **📝 Persona Intake**: Form-based persona creation with real-time ZOPA
 - **🎯 UI Polish**: Enhanced styling and user experience
 - **⚡ Performance**: Optimization and caching
 
@@ -182,13 +182,13 @@ The copilot provides data-driven advice using real negotiation data:
 ## 🏗️ **Refined Architecture: LLM vs. UI/UX**
 
 ### **✅ ACTUAL LLM Tasks (Keep These Prompts)**
-- **`explain_clause`**: Explain what clauses mean with BATNA awareness
-- **`revise_clause`**: Analyze proposed changes based on actual BATNA bands
+- **`explain_clause`**: Explain what clauses mean with ZOPA awareness
+- **`revise_clause`**: Analyze proposed changes based on actual ZOPA bands
 - **`simulate_trade`**: Simulate negotiations with real leverage data
 - **`general_chat`**: General VC lawyer advice with persona context
 
 ### **❌ NOT LLM Tasks (UI/UX Features)**
-- **`update_persona`**: Form-based persona creation with real-time BATNA computation
+- **`update_persona`**: Form-based persona creation with real-time ZOPA computation
 - **`regenerate_document`**: Orchestrator-driven term sheet generation + frontend redlining
 
 ### **🎯 Benefits of Refined Architecture**
@@ -206,7 +206,7 @@ The copilot provides data-driven advice using real negotiation data:
 # View available intents
 curl http://localhost:5002/api/copilot/prompts
 
-# Test BATNA-aware prompts
+# Test ZOPA-aware prompts
 curl http://localhost:5002/api/copilot/test-batna/{transaction_id}?clause_key=exclusivity
 
 # General chat with VC lawyer

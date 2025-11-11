@@ -217,7 +217,7 @@ TRANSACTION CONTEXT:
             {
                 "feature": "update_persona",
                 "description": "Persona creation and management",
-                "implementation": "Form-based UI with real-time BATNA computation",
+                "implementation": "Form-based UI with real-time ZOPA computation",
                 "llm_role": "Explain what persona attributes mean, not create them"
             },
             {

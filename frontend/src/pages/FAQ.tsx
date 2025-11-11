@@ -43,7 +43,7 @@ export const FAQsPage: React.FC = () => {
     {
       question: 'What is Consensus as a Service (CaaS)?',
       answer:
-        "**CaaS** is our mathematically-grounded negotiation engine that blends ***leverage-based modeling*** with AI reasoning.\n\nUnlike prompt-wrapped LLMs that ***hallucinate under pressure***, our **BATNA engine** runs ***simulated negotiations***, computes **leverage scores**, and feeds those signals into the model—anchoring every recommendation in math, not guesswork.",
+        "**CaaS** is our mathematically-grounded negotiation engine that blends ***leverage-based modeling*** with AI reasoning.\n\nUnlike prompt-wrapped LLMs that ***hallucinate under pressure***, our **ZOPA engine** runs ***simulated negotiations***, computes **leverage scores**, and feeds those signals into the model—anchoring every recommendation in math, not guesswork.",
     },
     {
       question: "Why we're different",

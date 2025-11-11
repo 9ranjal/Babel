@@ -1,4 +1,4 @@
-// Helper functions for BATNA analysis display
+// Helper functions for ZOPA analysis display
 
 export type Leverage = {
   investor: number;

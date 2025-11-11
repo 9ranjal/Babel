@@ -8,7 +8,7 @@ import { upload as uploadDocument, getDocument, listClauses, getDocumentStatus }
 import { useDocStore } from '../lib/store';
 import { resolveApiUrl } from '../lib/config';
 import { useToast } from '../hooks/useToast';
-import { useChatBus, enqueueSystemMessage } from '../lib/chatBus';
+import { useChatBus } from '../lib/chatBus';
 
 interface ChatInterfaceV2Props {
   module?: 'quiz' | 'notes' | 'flashcards' | 'search' | 'learn';
@@ -212,10 +212,11 @@ const SuggestedQuestionsBubble: React.FC<{
 export default function ChatInterfaceV2({ module = 'search', isMain = true, contextData }: ChatInterfaceV2Props) {
   const isMainView = isMain;
   const chatSessions = useChatSessionsContext();
-  const { currentSession, addMessage, createSession } = isMainView ? chatSessions : { 
+  const { currentSession, addMessage, createSession, attachDocument } = isMainView ? chatSessions : { 
     currentSession: null, 
     addMessage: () => {}, 
-    createSession: () => '' 
+    createSession: () => '',
+    attachDocument: () => {}
   };
   // chatBus subscription handled in useEffect via useChatBus
 
@@ -231,6 +232,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
   const [embeddedText, setEmbeddedText] = useState<string | null>(null);
   const [embeddedTitle, setEmbeddedTitle] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [isInjectedThinking, setIsInjectedThinking] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -282,6 +284,14 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
   useEffect(() => {
     if (!isMainView) return;
     const unsub = useChatBus.getState().subscribe((msg: { role: 'user' | 'assistant' | 'system', content: string }) => {
+      if (msg.role === 'system' && msg.content === '__thinking:start__') {
+        setIsInjectedThinking(true);
+        return;
+      }
+      if (msg.role === 'system' && msg.content === '__thinking:end__') {
+        setIsInjectedThinking(false);
+        return;
+      }
       let sessionId = currentSession?.id;
       if (!sessionId) {
         sessionId = createSession('New conversation', module);
@@ -434,6 +444,10 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
 
       const { document_id, requeued } = await uploadDocument(file);
       setDocId(document_id);
+      // Link this upload to the active chat session
+      if (isMainView && currentSession?.id) {
+        try { attachDocument(currentSession.id, document_id); } catch {}
+      }
       showSuccess('Upload started', requeued ? 'Queued parse job, waiting for worker…' : 'Parsing term sheet…');
       // Poll status until downstream stages complete (up to ~2 minutes)
       let status: string = 'uploaded';
@@ -465,12 +479,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
       if (clauses.length > 0) {
         setSelected(clauses[0].id);
       }
-      // Inject brief system note into chat
-      const investor = Math.round(((doc?.leverage_json?.investor ?? 0.6) * 100));
-      const founder = Math.round(((doc?.leverage_json?.founder ?? 0.4) * 100));
-      enqueueSystemMessage(
-        `Uploaded ${doc?.filename || 'document'}. Leverage: investor ${investor}%, founder ${founder}%. Detected ${clauses.length} clauses.`
-      );
+      // Upload complete - no default system chat message
       showSuccess('Upload complete', 'Clauses extracted and ready.');
     } catch (err: any) {
       console.error('Upload failed', err);
@@ -489,7 +498,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
     'Decipher the Jargon',
     'Negotiate with Confidence',
     'Term Sheet Intelligence',
-    'BATNA-Driven Advice'
+    'ZOPA-Driven Advice'
   ];
   const [subtitleIndex, setSubtitleIndex] = useState(0);
   const [welcomeSubtitle, setWelcomeSubtitle] = useState<string>(welcomePrompts[0]);
@@ -509,6 +518,33 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
   useEffect(() => {
     setWelcomeSubtitle(welcomePrompts[subtitleIndex]);
   }, [subtitleIndex]);
+
+  // Hydrate document/graph when switching chats with an associated documentId
+  useEffect(() => {
+    const hydrate = async () => {
+      try {
+        const docId = currentSession?.documentId;
+        if (!isMainView || !docId) return;
+        // If already loaded same doc, skip
+        const currentDocId = useDocStore.getState().docId;
+        if (currentDocId === docId) return;
+        setIsUploading(true);
+        const doc = await getDocument(docId);
+        const clauses = await listClauses(docId);
+        clearAnalyses();
+        setDocId(docId);
+        setDocument(doc);
+        setClauses(clauses);
+        if (clauses.length > 0) setSelected(clauses[0].id);
+      } catch (e) {
+        console.warn('Hydrate chat document failed', e);
+      } finally {
+        setIsUploading(false);
+      }
+    };
+    hydrate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMainView, currentSession?.documentId]);
 
   const messages = currentSession?.messages || [];
   const isEmptyState = (messages.length === 0) && !streamingMessage;
@@ -678,8 +714,8 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
         )}
 
       {/* Thinking Mode */}
-      {isLoading && !streamingMessage && (
-          <div className="flex justify-start mb-4">
+      {(isLoading || isInjectedThinking) && !streamingMessage && (
+          <div className="flex justify-start mb-6">
             <div className="inline-flex items-start gap-3 px-4 py-3 rounded-2xl bg-[#f0ede0] text-[#1f2328] border border-[#d9d4c4]">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <span>
@@ -692,7 +728,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
                 {isGeneratingFollowups && 'Generating Follow-ups'}
                 {!currentPhase && !isGeneratingFollowups && 'Thinking'}
                 </span>
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-1 ml-2">
                   <motion.span
                     animate={{ opacity: [0.3, 1, 0.3] }}
                     transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}

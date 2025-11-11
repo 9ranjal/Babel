@@ -1,4 +1,4 @@
-"""Enhanced copilot routes with BATNA analysis capabilities."""
+"""Enhanced copilot routes with ZOPA analysis capabilities."""
 from typing import List, Dict, Any, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -49,7 +49,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
 @router.post("/analyze-clause", response_model=ClauseAnalysisResponse)
 async def analyze_clause(request: ClauseAnalysisRequest) -> ClauseAnalysisResponse:
-    """Generate reasoned clause analysis using BATNA framework."""
+    """Generate reasoned clause analysis using ZOPA framework."""
     try:
         analysis = await copilot_service.analyze_clause(
             clause_key=request.clause_key,

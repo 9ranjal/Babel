@@ -1,4 +1,4 @@
-"""Enhanced copilot service with BATNA analysis capabilities."""
+"""Enhanced copilot service with ZOPA analysis capabilities."""
 from typing import List, Dict, Any, Optional
 import json
 
@@ -14,22 +14,23 @@ Your expertise includes:
 - Identifying market-standard terms vs aggressive positions
 - Risk assessment and practical recommendations
 
-Always provide balanced, actionable analysis based on market conventions."""
+Always provide balanced, actionable analysis based on market conventions.
+
+CRITICAL: Never reveal or mention internal leverage weights (investor/founder percentages) or any banding inputs in your responses."""
 
 
-ANALYSIS_PROMPT = """You are analyzing a specific clause from a term sheet. Use the provided BATNA bands framework to give reasoned analysis.
+ANALYSIS_PROMPT = """You are analyzing a specific clause from a term sheet. Use the provided ZOPA bands framework to give reasoned analysis.
 
 CONTEXT:
 - Clause: {clause_title}
 - Clause Text: {clause_text}
 - Extracted Attributes: {attributes}
-- Document Leverage: Investor {investor_weight}%, Founder {founder_weight}%
 
-BATNA BANDS DATA:
+ZOPA BANDS DATA:
 {bands_data}
 
 ANALYSIS REQUIREMENTS:
-1. Identify which BATNA band this clause falls into based on the extracted attributes
+1. Identify which ZOPA band this clause falls into based on the extracted attributes
 2. Explain the posture (founder_friendly, market, or investor_friendly) and why
 3. Highlight key risks or concerns for both parties
 4. Suggest specific negotiation points or trade-offs
@@ -39,7 +40,7 @@ Provide your analysis in a structured format with clear reasoning."""
 
 
 class CopilotService:
-    """Enhanced copilot with BATNA analysis capabilities."""
+    """Enhanced copilot with ZOPA analysis capabilities."""
 
     def __init__(self) -> None:
         self._client = get_openrouter_client()
@@ -47,7 +48,7 @@ class CopilotService:
         self._bands_cache = None
 
     def _get_bands_data(self) -> Dict[str, Any]:
-        """Cache and return BATNA bands data."""
+        """Cache and return ZOPA bands data."""
         if self._bands_cache is None:
             self._bands_cache = load_bands()
         return self._bands_cache
@@ -77,14 +78,14 @@ class CopilotService:
         attributes: Dict[str, Any],
         leverage: Dict[str, float]
     ) -> str:
-        """Provide reasoned analysis of a clause using BATNA framework."""
+        """Provide reasoned analysis of a clause using ZOPA framework."""
         if self._stubbed:
             return (
                 "OpenRouter API key is not configured. Cannot provide live clause analysis.\n\n"
-                "The deterministic BATNA analysis is available without API keys."
+                "The deterministic ZOPA analysis is available without API keys."
             )
 
-        # Get relevant BATNA data for this clause
+        # Get relevant ZOPA data for this clause
         bands_data = self._get_bands_data()
         clause_spec = find_clause_band_spec(bands_data, clause_key)
 

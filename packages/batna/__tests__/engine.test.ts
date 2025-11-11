@@ -7,7 +7,7 @@ function findClause(key: string) {
   return PACK.clauses.find((c: any) => c.clause_key === key)
 }
 
-describe('BATNA Engine - Comprehensive Tests', () => {
+describe('ZOPA Engine - Comprehensive Tests', () => {
   // Basic functionality tests
   test('exclusivity 30 days should pick market band', () => {
     const c = findClause('exclusivity')
