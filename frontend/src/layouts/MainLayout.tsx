@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import ChatHistory from '../components/ChatHistory';
 import TopBarCenter from '../components/TopBarCenter';
@@ -20,9 +20,23 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
   const [devicePixelRatio, setDevicePixelRatio] = useState<number>(1);
   const [browserZoom, setBrowserZoom] = useState<number>(1);
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(true);
+  const [hasAutoCollapsedForDoc, setHasAutoCollapsedForDoc] = useState(false);
   const docId = useDocStore((s) => s.docId);
-  const document = useDocStore((s) => s.document);
+  const doc = useDocStore((s) => s.document);
+  const resetStore = useDocStore((s) => s.reset);
   const isUploading = useDocStore((s) => s.isUploading);
+
+  const notifyLayoutChange = () => {
+    try {
+      document.dispatchEvent(new Event('ui:layoutChanged'));
+    } catch {}
+  };
+  // Resizable split between Copilot (chat) and Graph viewer
+  const [viewerRatio, setViewerRatio] = useState<number>(0.75); // 75% graph by default
+  const [isViewerOpen, setIsViewerOpen] = useState<boolean>(true);
+  const [isChatOpen, setIsChatOpen] = useState<boolean>(true);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState<boolean>(false);
 
   const toggleLeftPanel = () => {
     setIsLeftPanelCollapsed(!isLeftPanelCollapsed);
@@ -44,12 +58,17 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Default-collapse when a document is present or upload is in-progress
+  // Default-collapse once when a document is present or upload is in-progress, but allow manual re-open
   useEffect(() => {
-    if ((document || isUploading) && !isLeftPanelCollapsed) {
+    const hasDocOrUploading = Boolean(doc || isUploading);
+    if (hasDocOrUploading && !isLeftPanelCollapsed && !hasAutoCollapsedForDoc) {
       setIsLeftPanelCollapsed(true);
+      setHasAutoCollapsedForDoc(true);
     }
-  }, [document, isUploading, isLeftPanelCollapsed]);
+    if (!hasDocOrUploading && hasAutoCollapsedForDoc) {
+      setHasAutoCollapsedForDoc(false);
+    }
+  }, [doc, isUploading, isLeftPanelCollapsed, hasAutoCollapsedForDoc]);
 
   // Simple viewport height tracking
   useEffect(() => {
@@ -71,6 +90,56 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
       window.removeEventListener('resize', updateViewportMetrics);
       window.removeEventListener('orientationchange', updateViewportMetrics);
     };
+  }, []);
+
+  // Mouse handlers for resizing
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragging || !gridRef.current) return;
+      const rect = gridRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      // When left sidebar is visible, the first column is fixed; compute relative to container
+      const ratio = Math.min(0.9, Math.max(0.3, 1 - x / rect.width));
+      setViewerRatio(ratio);
+    };
+    const onMouseUp = () => setDragging(false);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [dragging]);
+
+  // Persist open state and ratio across refreshes
+  useEffect(() => {
+    try {
+      const savedOpen = localStorage.getItem('viewerOpen');
+      const savedRatio = localStorage.getItem('viewerRatio');
+      const savedChat = localStorage.getItem('chatOpen');
+      if (savedOpen !== null) setIsViewerOpen(savedOpen === 'true');
+      if (savedChat !== null) setIsChatOpen(savedChat === 'true');
+      if (savedRatio !== null) {
+        const r = parseFloat(savedRatio);
+        if (!isNaN(r) && r > 0.2 && r < 0.9) setViewerRatio(r);
+      }
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem('viewerOpen', String(isViewerOpen)); } catch {}
+  }, [isViewerOpen]);
+  useEffect(() => {
+    try { localStorage.setItem('viewerRatio', String(viewerRatio)); } catch {}
+  }, [viewerRatio]);
+  useEffect(() => {
+    try { localStorage.setItem('chatOpen', String(isChatOpen)); } catch {}
+  }, [isChatOpen]);
+
+  // Listen for UI event to show chat (e.g., graph node click)
+  useEffect(() => {
+    const onShowChat = () => setIsChatOpen(true);
+    document.addEventListener('ui:showChat', onShowChat as EventListener);
+    return () => document.removeEventListener('ui:showChat', onShowChat as EventListener);
   }, []);
 
   return (
@@ -104,35 +173,94 @@ export default function MainLayout({ children, activeModule = 'search' }: MainLa
             </div>
             
             {/* Main Layout: History + Chat + Viewer */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden relative">
               <div
-                className={`h-full grid ${
-                  document || isUploading
-                    ? isLeftPanelCollapsed
-                      ? 'grid-cols-[minmax(360px,1fr)_minmax(520px,1.2fr)]'
-                      : 'grid-cols-[minmax(204px,238px)_minmax(360px,1fr)_minmax(520px,1.2fr)]'
-                    : isLeftPanelCollapsed
-                    ? 'grid-cols-1'
-                    : 'grid-cols-[minmax(204px,238px)_minmax(360px,1fr)]'
-                }`}
+                ref={gridRef}
+                className="h-full grid"
+                style={{
+                  gridTemplateColumns: (() => {
+                    // Left sidebar accounted for by CSS only; here we set the remaining columns
+                    if (isViewerOpen && isChatOpen) {
+                      return isLeftPanelCollapsed
+                        ? `${Math.round((1 - viewerRatio) * 100)}% ${Math.round(viewerRatio * 100)}%`
+                        : `minmax(204px,238px) ${Math.round((1 - viewerRatio) * 100)}% ${Math.round(viewerRatio * 100)}%`;
+                    }
+                    if (isViewerOpen && !isChatOpen) {
+                      return isLeftPanelCollapsed ? `100%` : `minmax(204px,238px) 1fr`;
+                    }
+                    if (!isViewerOpen && isChatOpen) {
+                      return isLeftPanelCollapsed ? `100%` : `minmax(204px,238px) 1fr`;
+                    }
+                    return undefined;
+                  })()
+                }}
               >
                 {!isLeftPanelCollapsed && (
                   <aside className="border-r border-[color:var(--border)] overflow-hidden bg-white/70 backdrop-blur flex flex-col">
                     <ChatHistory onSelectChat={() => {}} currentModule={activeModule} />
                   </aside>
                 )}
+                {isChatOpen && (
                 <section
                   className={`overflow-hidden main-content-gradient text-neutral-900 ${
-                    document || isUploading ? 'border-r border-[color:var(--border)]' : ''
+                    isViewerOpen ? 'border-r border-[color:var(--border)]' : ''
                   }`}
+                  style={{ position: 'relative' }}
                 >
                   <div className="h-full flex flex-col">{children}</div>
+                  {isViewerOpen && (
+                    <div
+                      onMouseDown={() => setDragging(true)}
+                      className="absolute top-0 -right-0.5 h-full w-1 bg-[color:var(--border)] hover:bg-neutral-600 cursor-col-resize transition-colors"
+                      style={{ zIndex: 20 }}
+                    />
+                  )}
+                  {/* Chat-specific hide control removed; use global controls top-right */}
+                  {/* Chat-specific 'Show Graph' tab removed; use global controls top-right */}
                 </section>
-                {(document || isUploading) ? (
-                  <section className="overflow-hidden bg-white/80 backdrop-blur">
+                )}
+                {isViewerOpen ? (
+                  <section className="overflow-hidden bg-white/80 backdrop-blur relative">
                     <ViewerPane key={docId || 'uploading'} />
                   </section>
                 ) : null}
+              </div>
+
+              {/* Persistent Global Controls: always visible even if both panes are hidden */}
+              <div
+                className="absolute top-2 right-2 z-30 flex items-center gap-2"
+                style={{ pointerEvents: 'auto' }}
+              >
+                <button
+                  onClick={() => {
+                    resetStore();
+                    notifyLayoutChange();
+                  }}
+                  className="text-xs px-2 py-1 bg-white/90 border border-[color:var(--border)] rounded shadow-sm hover:bg-white"
+                  aria-label="Clear graph"
+                >
+                  Clear Graph
+                </button>
+                <button
+                  onClick={() => {
+                    setIsChatOpen((v) => !v);
+                    requestAnimationFrame(() => notifyLayoutChange());
+                  }}
+                  className="text-xs px-2 py-1 bg-white/90 border border-[color:var(--border)] rounded shadow-sm hover:bg-white"
+                  aria-label={isChatOpen ? 'Hide chat' : 'Show chat'}
+                >
+                  {isChatOpen ? 'Hide Chat' : 'Show Chat'}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsViewerOpen((v) => !v);
+                    requestAnimationFrame(() => notifyLayoutChange());
+                  }}
+                  className="text-xs px-2 py-1 bg-white/90 border border-[color:var(--border)] rounded shadow-sm hover:bg-white"
+                  aria-label={isViewerOpen ? 'Hide graph' : 'Show graph'}
+                >
+                  {isViewerOpen ? 'Hide Graph' : 'Show Graph'}
+                </button>
               </div>
             </div>
           </ChatSessionsProvider>

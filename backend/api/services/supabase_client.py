@@ -62,6 +62,8 @@ async def create_signed_url(bucket: str, path: str, expires_in: int = 3600) -> s
 
 
 async def upload_file(bucket: str, path: str, bytes_content: bytes, content_type: str) -> None:
+    from api.core.logging import logger
+    
     supabase_url = _supabase_url()
     service_role_key = _service_role_key()
     url = f"{supabase_url}/storage/v1/object/{bucket}/{path}"
@@ -70,11 +72,24 @@ async def upload_file(bucket: str, path: str, bytes_content: bytes, content_type
         "apikey": service_role_key,
         "Content-Type": content_type,
     }
+    logger.info("upload_file: bucket=%s path=%s url=%s content_len=%d", bucket, path, url, len(bytes_content))
     async with httpx.AsyncClient(timeout=None) as client:
         resp = await client.post(url, headers=headers, content=bytes_content)
         if resp.status_code not in (200, 201):
             error_detail = resp.text
-            print(f"Supabase Storage Error: {resp.status_code} - {error_detail}")
+            error_json = None
+            try:
+                error_json = resp.json()
+            except Exception:
+                pass
+            logger.error(
+                "Supabase Storage upload failed: status=%d bucket=%s path=%s error=%s json=%s",
+                resp.status_code,
+                bucket,
+                path,
+                error_detail[:500],
+                error_json,
+            )
             resp.raise_for_status()
 
 

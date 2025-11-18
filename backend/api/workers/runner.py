@@ -14,6 +14,13 @@ from .handlers import HANDLERS
 
 
 async def _claim_next_job(session: AsyncSession) -> dict | None:
+    # First check how many queued jobs exist (for debugging)
+    count_res = await session.execute(text("select count(*) as cnt from public.jobs where status = 'queued'"))
+    count_row = count_res.mappings().first()
+    queued_count = count_row["cnt"] if count_row else 0
+    if queued_count > 0:
+        logger.info("worker found %d queued job(s), attempting to claim", queued_count)
+    
     q = text(
         """
         with j as (
@@ -33,7 +40,11 @@ async def _claim_next_job(session: AsyncSession) -> dict | None:
     )
     res = await session.execute(q)
     row = res.mappings().first()
-    return dict(row) if row else None
+    if row:
+        return dict(row)
+    elif queued_count > 0:
+        logger.warning("worker found %d queued jobs but couldn't claim any (may be locked by another worker)", queued_count)
+    return None
 
 
 async def _finish_job(session: AsyncSession, job_id: str) -> None:
@@ -88,7 +99,14 @@ async def run_worker_loop() -> None:
     try:
         while True:
             async with S() as session:
-                job = await _claim_next_job(session)
+                try:
+                    job = await _claim_next_job(session)
+                except Exception as exc:
+                    logger.error("worker database error during job claim: %s", exc, exc_info=True)
+                    await session.rollback()
+                    await asyncio.sleep(poll_seconds)
+                    continue
+                
                 if not job:
                     await session.commit()
                     now = loop.time()

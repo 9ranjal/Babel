@@ -47,7 +47,7 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
 
     checksum = hashlib.sha256(content).hexdigest()
     demo_user = get_demo_user_id()
-    logger.info("upload start filename=%s content_type=%s checksum=%s", file.filename, content_type, checksum)
+    logger.info("upload start filename=%s content_type=%s checksum=%s size=%d", file.filename, content_type, checksum, len(content))
 
     # Short-circuit on (user_id, checksum)
     S = get_sessionmaker()
@@ -101,6 +101,7 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
             idempotency_key=f"parse::{document_id}::{checksum}",
         )
         await session.commit()
+        logger.info("upload job enqueued successfully document_id=%s", document_id)
 
     logger.info("upload queued document_id=%s blob_path=%s", document_id, blob_path)
     return {"document_id": document_id, "requeued": False}

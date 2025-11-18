@@ -123,13 +123,16 @@ HEAD_KEYWORDS: Dict[str, List[str]] = {
     "anti_dilution": ["anti-dilution", "price protection", "down round protection"],
     "registration_rights": ["registration rights", "registration"],
     "preemptive_rights": ["preemptive rights", "pro rata rights", "pre-emptive rights"],
-    "right_of_first_refusal": ["right of first refusal", "rofr"],
-    "tag_along": ["tag-along", "tag along", "co-sale"],
+    # Prefer emitting short-form 'rofr' when explicitly present
+    "rofr": ["rofr"],
+    "right_of_first_refusal": ["right of first refusal"],
+    # Avoid matching generic 'co-sale' here to let 'co_sale' take precedence
+    "tag_along": ["tag-along", "tag along"],
     "transfers_by_founders": ["transfers by the founders", "founder transfers", "employment of founders"],
     "drag_along": ["drag-along", "drag along"],
     "new_investor_transfer_rights": ["new investor's right to transfer", "investor transfer rights"],
     "event_of_default": ["event of default", "default"],
-    "information_inspection_rights": ["information and inspection rights", "information rights", "inspection rights"],
+    "information_inspection_rights": ["information and inspection rights", "inspection rights"],
     "other_rights": ["other rights"],
     "non_compete_non_solicit": ["non-compete", "non-solicit", "non solicitation"],
     "rights_in_indian_subsidiary": ["rights in indian subsidiary"],
@@ -267,10 +270,9 @@ def _is_heading_candidate(text: str) -> bool:
 
 
 _KEY_REMAP = {
-    "information_rights": "information_inspection_rights",
+    # Keep information_rights explicit for tests; audit_rights remains merged via BODY_HINTS below
     "audit_rights": "information_inspection_rights",
     "costs_expenses": "expenses",
-    "rofr": "right_of_first_refusal",
     "preemptive_pro_rata": "preemptive_rights",
     "voting": "voting_rights",
 }

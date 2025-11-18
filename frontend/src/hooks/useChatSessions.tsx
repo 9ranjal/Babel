@@ -7,6 +7,7 @@ export interface ChatSession {
   messageCount: number;
   module: string;
   messages: ChatMessage[];
+  documentId?: string; // associated uploaded document id (for graph/viewer)
 }
 
 export interface ChatMessage {
@@ -133,6 +134,17 @@ export function useChatSessions() {
     });
   }, []);
 
+  const attachDocument = useCallback((sessionId: string, documentId: string) => {
+    setSessions(prev => {
+      return prev.map(session => {
+        if (session.id === sessionId) {
+          return { ...session, documentId };
+        }
+        return session;
+      });
+    });
+  }, []);
+
   const currentSession = useMemo(() => {
     return sessions.find(session => session.id === currentSessionId) || null;
   }, [sessions, currentSessionId]);
@@ -176,6 +188,7 @@ export function useChatSessions() {
     deleteSession,
     updateSessionTitle,
     addMessage,
+    attachDocument,
     syncToSupabase,
     hydrateFromSupabase,
   };

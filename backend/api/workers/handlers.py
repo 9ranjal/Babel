@@ -356,12 +356,20 @@ async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
                 if block_id in block_to_chunk:
                     target_chunk = block_to_chunk[block_id]
                     break
+            # Fallback by page if no block-level match
             if not target_chunk:
                 page_hint = snippet.get("page_hint")
-            if page_hint is not None and int(page_hint) in page_to_chunk:
-                target_chunk = page_to_chunk[int(page_hint)]
-            elif 0 in page_to_chunk:
-                target_chunk = page_to_chunk[0]
+                page_idx: Optional[int] = None
+                if page_hint is not None:
+                    try:
+                        page_idx = int(page_hint)
+                    except (ValueError, TypeError):
+                        page_idx = None
+                if page_idx is not None and page_idx in page_to_chunk:
+                    target_chunk = page_to_chunk[page_idx]
+                elif 0 in page_to_chunk:
+                    # Graceful fallback to first page when no page hint provided
+                    target_chunk = page_to_chunk[0]
             if target_chunk:
                 await session.execute(
                     text("update public.chunks set clause_id = :cid where id = :chunk_id"),

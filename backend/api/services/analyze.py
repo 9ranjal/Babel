@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import bindparam
 
-from .band_map import load_bands, find_clause_band_spec, pick_band, composite_score
 from .extract_regex import extract_attributes
+from .banding import band_clause, canonical
+from .band_map import composite_score, DEFAULT_LEVERAGE
 
 
 async def analyze_clause(
@@ -20,20 +21,13 @@ async def analyze_clause(
     leverage: Dict[str, float] | None,
     attributes: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
-    bands_data = load_bands()
-    spec = find_clause_band_spec(bands_data, clause_key or "") if clause_key else None
     # Derive attributes deterministically from stored clause text
     derived_attrs = extract_attributes(clause_text or "")
-    band = None
-    if spec:
-        band = pick_band(
-            spec.get("bands", []),
-            derived_attrs or {},
-            leverage or {"investor": 0.6, "founder": 0.4},
-        )
-
-    band_name = band.get("name") if band else None
-    band_score = composite_score(band, leverage or {"investor": 0.6, "founder": 0.4}) if band else None
+    # Compute banding using shared utility (handles aliases + badges)
+    info = band_clause(canonical(clause_key or ""), derived_attrs, leverage or DEFAULT_LEVERAGE)
+    band = info.get("band")
+    band_name = info.get("band_name")
+    band_score = composite_score(band, leverage or DEFAULT_LEVERAGE) if band else None
 
     # Determine posture based on band scores
     posture = "market"  # default
@@ -51,9 +45,9 @@ async def analyze_clause(
         "posture": posture,
         "band_name": band_name,
         "band_score": band_score,
-        "rationale": [band.get("rationale", "")] if band else [],
+        "rationale": info.get("rationale", []),
         "recommendation": f"Review {clause_key or 'clause'}; band={band_name or 'unknown'}",
-        "trades": spec.get("trades", []) if spec else [],
+        "trades": info.get("trades", []),
     }
 
     inputs_json = {

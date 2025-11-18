@@ -1,6 +1,6 @@
-# Aidem AI Frontend
+# Babel Labs Frontend
 
-Modern, clean React frontend for Aidem AI built with Vite, TypeScript, and Tailwind CSS.
+Modern, clean React frontend for Babel Labs built with Vite, TypeScript, and Tailwind CSS.
 
 ## 🚀 Quick Start
 
