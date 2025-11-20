@@ -36,15 +36,31 @@ def _service_role_key() -> str:
 
 
 def get_engine() -> AsyncEngine:
+    from api.core.logging import logger
+    from urllib.parse import urlparse
+    
     global _engine
     if _engine is None:
-        _engine = create_async_engine(_supabase_db_url(), pool_pre_ping=True)
+        db_url = _supabase_db_url()
+        # Log connection details (redact password)
+        parsed = urlparse(db_url)
+        safe_url = f"{parsed.scheme}://{parsed.username}:***@{parsed.hostname}:{parsed.port or 5432}{parsed.path}"
+        logger.info("Initializing database engine: host=%s port=%s db=%s", parsed.hostname, parsed.port or 5432, parsed.path or "/postgres")
+        try:
+            _engine = create_async_engine(db_url, pool_pre_ping=True, echo=False)
+            logger.info("Database engine created successfully")
+        except Exception as e:
+            logger.error("Failed to create database engine: %s", e, exc_info=True)
+            raise
     return _engine
 
 
 def get_sessionmaker() -> sessionmaker:
+    from api.core.logging import logger
+    
     global _session_maker
     if _session_maker is None:
+        logger.info("Creating database session maker")
         _session_maker = sessionmaker(bind=get_engine(), class_=AsyncSession, expire_on_commit=False)
     return _session_maker
 

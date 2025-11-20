@@ -32,6 +32,9 @@ if not frontend_origins:
 else:
     frontend_origins |= default_frontend_origins
 
+from api.core.logging import logger
+logger.info("CORS allowed origins: %s", sorted(frontend_origins))
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=sorted(frontend_origins),

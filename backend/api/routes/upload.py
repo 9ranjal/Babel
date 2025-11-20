@@ -51,37 +51,42 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
 
     # Short-circuit on (user_id, checksum)
     S = get_sessionmaker()
-    async with S() as session:  # type: AsyncSession
-        existing = await session.execute(
-            text(
-                """
-                select id, mime, blob_path, checksum, status, pages_json from public.documents
-                where user_id = :uid and checksum = :cs
-                limit 1
-                """
-            ),
-            {"uid": demo_user, "cs": checksum},
-        )
-        row = existing.mappings().first()
-        if row:
-            # Decide whether to requeue parse job
-            should_requeue = (row.get("pages_json") is None) or (row.get("status") in ("uploaded", "failed"))
-            requeued = False
-            if should_requeue:
-                try:
-                    await _enqueue_job(
-                        session,
-                        job_type="PARSE_DOC",
-                        document_id=str(row["id"]),
-                        payload={"mime": row["mime"], "blob_path": row["blob_path"]},
-                        idempotency_key=f"parse::{row['id']}::{row['checksum']}",
-                    )
-                    await session.commit()
-                    requeued = True
-                except Exception as exc:  # pragma: no cover
-                    logger.warning("upload requeue failed document_id=%s err=%s", row["id"], exc)
-            logger.info("upload short-circuit: document_id=%s requeued=%s", row["id"], requeued)
-            return {"document_id": row["id"], "requeued": requeued}
+    try:
+        async with S() as session:  # type: AsyncSession
+            logger.info("upload: checking for existing document")
+            existing = await session.execute(
+                text(
+                    """
+                    select id, mime, blob_path, checksum, status, pages_json from public.documents
+                    where user_id = :uid and checksum = :cs
+                    limit 1
+                    """
+                ),
+                {"uid": demo_user, "cs": checksum},
+            )
+            row = existing.mappings().first()
+            if row:
+                # Decide whether to requeue parse job
+                should_requeue = (row.get("pages_json") is None) or (row.get("status") in ("uploaded", "failed"))
+                requeued = False
+                if should_requeue:
+                    try:
+                        await _enqueue_job(
+                            session,
+                            job_type="PARSE_DOC",
+                            document_id=str(row["id"]),
+                            payload={"mime": row["mime"], "blob_path": row["blob_path"]},
+                            idempotency_key=f"parse::{row['id']}::{row['checksum']}",
+                        )
+                        await session.commit()
+                        requeued = True
+                    except Exception as exc:  # pragma: no cover
+                        logger.warning("upload requeue failed document_id=%s err=%s", row["id"], exc)
+                logger.info("upload short-circuit: document_id=%s requeued=%s", row["id"], requeued)
+                return {"document_id": row["id"], "requeued": requeued}
+    except Exception as db_exc:
+        logger.error("upload: database connection error: %s", db_exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {type(db_exc).__name__}") from db_exc
 
     # If new, create document row and upload blob, then enqueue PARSE_DOC
     document_id = str(uuid.uuid4())
@@ -91,17 +96,22 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=f"Storage not configured: {exc}") from exc
 
-    async with S() as session:  # type: AsyncSession
-        await _insert_document_min(session, document_id, demo_user, file.filename, content_type, blob_path, checksum)
-        await _enqueue_job(
-            session,
-            job_type="PARSE_DOC",
-            document_id=document_id,
-            payload={"mime": content_type, "blob_path": blob_path},
-            idempotency_key=f"parse::{document_id}::{checksum}",
-        )
-        await session.commit()
-        logger.info("upload job enqueued successfully document_id=%s", document_id)
+    try:
+        async with S() as session:  # type: AsyncSession
+            logger.info("upload: inserting new document")
+            await _insert_document_min(session, document_id, demo_user, file.filename, content_type, blob_path, checksum)
+            await _enqueue_job(
+                session,
+                job_type="PARSE_DOC",
+                document_id=document_id,
+                payload={"mime": content_type, "blob_path": blob_path},
+                idempotency_key=f"parse::{document_id}::{checksum}",
+            )
+            await session.commit()
+            logger.info("upload job enqueued successfully document_id=%s", document_id)
+    except Exception as db_exc:
+        logger.error("upload: database error inserting document: %s", db_exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error: {type(db_exc).__name__}") from db_exc
 
     logger.info("upload queued document_id=%s blob_path=%s", document_id, blob_path)
     return {"document_id": document_id, "requeued": False}
