@@ -20,7 +20,7 @@ class OpenRouterClient:
         self,
         messages: List[Dict[str, str]],
         temperature: float = 0.7,
-        max_tokens: int = 800,
+        max_tokens: int = 4000,
     ) -> str:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
