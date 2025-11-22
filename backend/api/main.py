@@ -10,6 +10,7 @@ from api.routes.copilot import router as copilot_router
 from api.routes.upload import router as upload_router
 from api.routes.documents import router as documents_router
 from api.routes.clauses import router as clauses_router
+from api.routes.ts_generator import router as ts_generator_router
 from api.workers.runner import run_worker_loop
 
 app = FastAPI(title="Babel Copilot API")
@@ -47,6 +48,7 @@ app.include_router(copilot_router, prefix="/api")
 app.include_router(upload_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(clauses_router, prefix="/api")
+app.include_router(ts_generator_router, prefix="/api")
 
 
 @app.on_event("startup")
