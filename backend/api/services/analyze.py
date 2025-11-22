@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import bindparam
 
+from api.core.db import schema_table
 from .extract_regex import extract_attributes
 from .banding import band_clause, canonical
 from .band_map import composite_score, DEFAULT_LEVERAGE
@@ -57,10 +58,11 @@ async def analyze_clause(
         "band_hint": band,
     }
 
+    analyses_table = schema_table("analyses")
     q = (
         text(
-        """
-        insert into public.analyses (id, document_id, clause_id, band_name, band_score, inputs_json, analysis_json, redraft_text)
+        f"""
+        insert into {analyses_table} (id, document_id, clause_id, band_name, band_score, inputs_json, analysis_json, redraft_text)
             values (gen_random_uuid(), :document_id, :clause_id, :band_name, :band_score, :inputs_json, :analysis_json, null)
         on conflict (document_id, clause_id)
         do update set

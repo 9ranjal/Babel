@@ -5,13 +5,16 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.core.db import schema_table
+
 
 async def save_redraft(session: AsyncSession, document_id: str, clause_id: str, original_text: str) -> dict[str, Any]:
     # Deterministic placeholder: wrap original suggesting edits
     redraft_text = f"Notwithstanding the foregoing, the parties agree: {original_text}"
+    analyses_table = schema_table("analyses")
     q = text(
-        """
-        update public.analyses
+        f"""
+        update {analyses_table}
         set redraft_text = :redraft_text
         where document_id = :document_id and clause_id = :clause_id
         returning id, clause_id, band_name, band_score, analysis_json, redraft_text

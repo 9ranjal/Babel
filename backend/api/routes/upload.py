@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import bindparam
 
+from api.core.db import schema_table
 from api.core.settings import get_demo_user_id
 from api.services.supabase_client import get_sessionmaker, upload_file
 from api.core.logging import logger
@@ -54,10 +55,11 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
     try:
         async with S() as session:  # type: AsyncSession
             logger.info("upload: checking for existing document")
+            documents_table = schema_table("documents")
             existing = await session.execute(
                 text(
-                    """
-                    select id, mime, blob_path, checksum, status, pages_json from public.documents
+                    f"""
+                    select id, mime, blob_path, checksum, status, pages_json from {documents_table}
                     where user_id = :uid and checksum = :cs
                     limit 1
                     """
@@ -126,10 +128,11 @@ async def _insert_document_min(
     blob_path: str,
     checksum: str,
 ) -> None:
+    documents_table = schema_table("documents")
     q = (
         text(
-            """
-            insert into public.documents (id, user_id, filename, mime, blob_path, checksum, status)
+            f"""
+            insert into {documents_table} (id, user_id, filename, mime, blob_path, checksum, status)
             values (:id, :user_id, :filename, :mime, :blob_path, :checksum, 'uploaded')
             on conflict (id) do nothing
             """
@@ -158,9 +161,10 @@ async def _enqueue_job(
     import json
 
     payload_serializable = json.loads(json.dumps(payload, default=str))
+    jobs_table = schema_table("jobs")
     q = text(
-        """
-        insert into public.jobs (type, document_id, payload, idempotency_key, status, attempts)
+        f"""
+        insert into {jobs_table} (type, document_id, payload, idempotency_key, status, attempts)
         values (:type, :document_id, :payload, :idem, 'queued', 0)
         on conflict (idempotency_key) do update
         set status = 'queued',

@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import bindparam
 import json
 
+from api.core.db import schema_table
 from api.core.settings import get_demo_user_id
 from api.models.schemas import DocumentOut, ClauseOut
 from api.services.supabase_client import get_sessionmaker
@@ -23,10 +24,11 @@ async def get_document(doc_id: str) -> Any:
     demo_user = get_demo_user_id()
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
+        documents_table = schema_table("documents")
         row = (
             await session.execute(
                 text(
-                    "select id, filename, mime, blob_path, status, leverage_json, graph_json, pages_json from public.documents where id = :id and user_id = :uid"
+                    f"select id, filename, mime, blob_path, status, leverage_json, graph_json, pages_json from {documents_table} where id = :id and user_id = :uid"
                 ),
                 {"id": doc_id, "uid": demo_user},
             )
@@ -64,9 +66,11 @@ async def list_clauses(doc_id: str) -> Any:
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
         # ensure document ownership
+        documents_table = schema_table("documents")
+        clauses_table = schema_table("clauses")
         owned = (
             await session.execute(
-                text("select 1 from public.documents where id = :id and user_id = :uid"),
+                text(f"select 1 from {documents_table} where id = :id and user_id = :uid"),
                 {"id": doc_id, "uid": demo_user},
             )
         ).scalar_one_or_none()
@@ -76,7 +80,7 @@ async def list_clauses(doc_id: str) -> Any:
         rows = (
             await session.execute(
                 text(
-                    "select id, document_id, clause_key, title, text, page_hint from public.clauses where document_id = :id order by created_at asc"
+                    f"select id, document_id, clause_key, title, text, page_hint from {clauses_table} where document_id = :id order by created_at asc"
                 ),
                 {"id": doc_id},
             )
@@ -100,10 +104,12 @@ async def get_document_status(doc_id: str) -> Any:
     demo_user = get_demo_user_id()
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
+        documents_table = schema_table("documents")
+        jobs_table = schema_table("jobs")
         row = (
             await session.execute(
                 text(
-                    "select id, status, mime, blob_path, checksum from public.documents where id = :id and user_id = :uid"
+                    f"select id, status, mime, blob_path, checksum from {documents_table} where id = :id and user_id = :uid"
                 ),
                 {"id": doc_id, "uid": demo_user},
             )
@@ -115,15 +121,15 @@ async def get_document_status(doc_id: str) -> Any:
         if status == "uploaded":
             j = (
                 await session.execute(
-                    text("select 1 from public.jobs where document_id = :doc and status in ('queued','working') limit 1"),
+                    text(f"select 1 from {jobs_table} where document_id = :doc and status in ('queued','working') limit 1"),
                     {"doc": doc_id},
                 )
             ).first()
             if j is None:
                 payload = {"mime": row["mime"], "blob_path": row["blob_path"]}
                 insert_job = text(
-                    """
-                    insert into public.jobs (type, document_id, payload, status, attempts, idempotency_key)
+                    f"""
+                    insert into {jobs_table} (type, document_id, payload, status, attempts, idempotency_key)
                     values (:type, :doc, :payload, 'queued', 0, :idem)
                     on conflict (idempotency_key) do update
                     set status = 'queued',

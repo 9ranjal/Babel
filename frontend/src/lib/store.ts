@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+type ParsingStatus = 'uploaded' | 'extracted' | 'graphed' | 'analyzed' | null;
+
 type DocumentState = {
   docId?: string;
   document?: any;
@@ -7,6 +9,7 @@ type DocumentState = {
   analyses: Record<string, any>;
   selectedClauseId?: string;
   isUploading: boolean;
+  parsingStatus: ParsingStatus;
   setDocId: (id?: string) => void;
   setDocument: (doc?: any) => void;
   setClauses: (clauses: any[]) => void;
@@ -14,6 +17,7 @@ type DocumentState = {
   clearAnalyses: () => void;
   setSelected: (id?: string) => void;
   setIsUploading: (uploading: boolean) => void;
+  setParsingStatus: (status: ParsingStatus) => void;
   reset: () => void;
 };
 
@@ -24,6 +28,7 @@ const defaultState = {
   analyses: {} as Record<string, any>,
   selectedClauseId: undefined,
   isUploading: false,
+  parsingStatus: null as ParsingStatus,
 };
 
 export const useDocStore = create<DocumentState>((set) => ({
@@ -36,6 +41,7 @@ export const useDocStore = create<DocumentState>((set) => ({
   clearAnalyses: () => set({ analyses: {} }),
   setSelected: (selectedClauseId) => set({ selectedClauseId }),
   setIsUploading: (isUploading) => set({ isUploading }),
+  setParsingStatus: (parsingStatus) => set({ parsingStatus }),
   reset: () => set({ ...defaultState }),
 }));
 

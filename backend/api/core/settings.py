@@ -34,7 +34,11 @@ class Settings(BaseSettings):
     EMBEDDINGS_ENABLED: bool = True
     JOB_POLL_INTERVAL_MS: int = 500
     AUTO_START_WORKER: bool = True
+    WORKER_PARALLELISM: int = 2
     WORKER_STALE_SECONDS: int = 120
+    WORKER_STALE_JOB_SECONDS: int = 300
+    WORKER_STALE_CHECK_INTERVAL_SECONDS: int = 60
+    DB_SCHEMA: str = "public"
 
 
 settings = Settings()

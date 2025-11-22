@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.core.db import schema_table
 from api.core.settings import get_demo_user_id
 from api.models.schemas import ClauseOut, AnalysisOut
 from api.services.analyze import analyze_clause
@@ -17,11 +18,13 @@ router = APIRouter()
 
 
 async def _get_clause_with_doc(session: AsyncSession, clause_id: str, demo_user: str):
+    clauses_table = schema_table("clauses")
+    documents_table = schema_table("documents")
     q = text(
-        """
+        f"""
         select c.id as clause_id, c.document_id, c.clause_key, c.title, c.text, d.leverage_json
-        from public.clauses c
-        join public.documents d on d.id = c.document_id
+        from {clauses_table} c
+        join {documents_table} d on d.id = c.document_id
         where c.id = :cid and d.user_id = :uid
         """
     )

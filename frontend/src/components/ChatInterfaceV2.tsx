@@ -246,6 +246,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
   const setSelected = useDocStore((s) => s.setSelected);
   const clearAnalyses = useDocStore((s) => s.clearAnalyses);
   const setIsUploading = useDocStore((s) => s.setIsUploading);
+  const setParsingStatus = useDocStore((s) => s.setParsingStatus);
 
   // Create session on mount if needed
   useEffect(() => {
@@ -438,6 +439,7 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
     if (!file) return;
     setUploading(true);
     setIsUploading(true);
+    setParsingStatus('uploaded');
     try {
       const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
       const readyStatuses = new Set(['extracted', 'graphed', 'analyzed']);
@@ -451,11 +453,22 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
       showSuccess('Upload started', requeued ? 'Queued parse job, waiting for worker…' : 'Parsing term sheet…');
       // Poll status until downstream stages complete (up to ~2 minutes)
       let status: string = 'uploaded';
+      setParsingStatus('uploaded');
       const statusDeadline = Date.now() + 120000; // wait up to 2 minutes for full pipeline
       while (Date.now() < statusDeadline) {
         try {
           const s = await getDocumentStatus(document_id);
           status = s.status;
+          // Update parsing status based on current status
+          if (status === 'uploaded') {
+            setParsingStatus('uploaded');
+          } else if (status === 'extracted') {
+            setParsingStatus('extracted');
+          } else if (status === 'graphed') {
+            setParsingStatus('graphed');
+          } else if (status === 'analyzed') {
+            setParsingStatus('analyzed');
+          }
           if (readyStatuses.has(status)) break;
         } catch {
           // ignore transient
@@ -464,6 +477,14 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
       }
       const doc = await getDocument(document_id);
       status = doc?.status ?? status;
+      // Ensure final status is set
+      if (status === 'analyzed') {
+        setParsingStatus('analyzed');
+      } else if (status === 'graphed') {
+        setParsingStatus('graphed');
+      } else if (status === 'extracted') {
+        setParsingStatus('extracted');
+      }
       let clauses = await listClauses(document_id);
       if (clauses.length === 0 && readyStatuses.has(status)) {
         const clausesDeadline = Date.now() + 20000;
@@ -479,11 +500,14 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
       if (clauses.length > 0) {
         setSelected(clauses[0].id);
       }
+      // Clear parsing status once document is fully loaded
+      setParsingStatus(null);
       // Upload complete - no default system chat message
       showSuccess('Upload complete', 'Clauses extracted and ready.');
     } catch (err: any) {
       console.error('Upload failed', err);
       showError('Upload failed', err?.message || 'Unable to process file');
+      setParsingStatus(null);
     } finally {
       event.target.value = '';
       setUploading(false);
@@ -536,6 +560,8 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
         setDocument(doc);
         setClauses(clauses);
         if (clauses.length > 0) setSelected(clauses[0].id);
+        // Clear parsing status for already-parsed documents
+        setParsingStatus(null);
       } catch (e) {
         console.warn('Hydrate chat document failed', e);
       } finally {

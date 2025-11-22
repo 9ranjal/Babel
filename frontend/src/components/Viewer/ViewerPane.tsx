@@ -4,6 +4,7 @@ import { useDocStore } from '../../lib/store';
 import { Button } from '../ui/Button';
 import { ClauseList } from './ClauseList';
 import { GraphViewer } from './GraphViewer';
+import { ParsingStatusTracker } from './ParsingStatusTracker';
 import { analyzeClauseInChat } from '../../lib/copilot';
 
 export function ViewerPane() {
@@ -11,6 +12,7 @@ export function ViewerPane() {
   const clauses = useDocStore((s) => s.clauses);
   const selectedClauseId = useDocStore((s) => s.selectedClauseId);
   const isUploading = useDocStore((s) => s.isUploading);
+  const parsingStatus = useDocStore((s) => s.parsingStatus);
   const setSelected = useDocStore((s) => s.setSelected);
   const resetStore = useDocStore((s) => s.reset);
 
@@ -18,18 +20,9 @@ export function ViewerPane() {
     resetStore();
   };
 
-  if (isUploading && !document) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center text-center p-8 gap-4">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--ink-700)]"></div>
-          <div className="text-lg font-medium text-[color:var(--ink-700)]">Processing document...</div>
-          <div className="text-sm text-[color:var(--ink-500)] max-w-sm">
-            Parsing term sheet and extracting clauses. This may take a few moments.
-          </div>
-        </div>
-      </div>
-    );
+  // Show parsing status tracker when uploading/parsing and no graph yet
+  if ((isUploading || parsingStatus) && !document?.graph_json) {
+    return <ParsingStatusTracker status={parsingStatus} />;
   }
 
   if (!document) {

@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import bindparam
 
+from api.core.db import schema_table
 from api.core.logging import logger
 from api.core.settings import settings
 from api.services.supabase_client import get_sessionmaker, download_file
@@ -38,10 +39,11 @@ async def _enqueue_job(
     import json
 
     payload_serializable = json.loads(json.dumps(payload, default=str))
+    jobs_table = schema_table("jobs")
     q = (
         text(
-            """
-            insert into public.jobs (type, document_id, payload, idempotency_key, status, attempts)
+            f"""
+            insert into {jobs_table} (type, document_id, payload, idempotency_key, status, attempts)
             values (:type, :document_id, :payload, :idem, 'queued', 0)
             on conflict (idempotency_key) do update
             set status = 'queued',
@@ -90,9 +92,10 @@ async def handle_parse_doc(job: dict) -> None:  # PARSE_DOC
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
         # Idempotency: skip if pages_json already set
+        documents_table = schema_table("documents")
         existing = (
             await session.execute(
-                text("select pages_json from public.documents where id = :id"),
+                text(f"select pages_json from {documents_table} where id = :id"),
                 {"id": document_id},
             )
         ).mappings().first()
@@ -135,8 +138,8 @@ async def handle_parse_doc(job: dict) -> None:  # PARSE_DOC
         # Persist
         from json import dumps
         q = text(
-            """
-            update public.documents
+            f"""
+            update {documents_table}
                set text_plain = :text_plain,
                    pages_json = :pages_json,
                    status = 'parsed'
@@ -185,7 +188,7 @@ async def handle_chunk_embed(job: dict) -> None:  # CHUNK_EMBED
         # Idempotency: if chunks exist, skip
         existing = (
             await session.execute(
-                text("select 1 from public.chunks where document_id = :id limit 1"),
+                text(f"select 1 from {schema_table('chunks')} where document_id = :id limit 1"),
                 {"id": document_id},
             )
         ).scalar_one_or_none()
@@ -194,9 +197,11 @@ async def handle_chunk_embed(job: dict) -> None:  # CHUNK_EMBED
             await session.commit()
             return
         # Load pages_json
+        documents_table = schema_table("documents")
+        chunks_table = schema_table("chunks")
         row = (
             await session.execute(
-                text("select pages_json from public.documents where id = :id"),
+                text(f"select pages_json from {documents_table} where id = :id"),
                 {"id": document_id},
             )
         ).mappings().first()
@@ -210,8 +215,8 @@ async def handle_chunk_embed(job: dict) -> None:  # CHUNK_EMBED
         # Insert chunks
         insert_chunk_stmt = (
             text(
-                """
-                insert into public.chunks (id, document_id, clause_id, block_id, page, kind, text, meta)
+                f"""
+                insert into {chunks_table} (id, document_id, clause_id, block_id, page, kind, text, meta)
                 values (gen_random_uuid(), :document_id, null, :block_id, :page, :kind, :text, :meta)
                 """
             ).bindparams(bindparam("meta", type_=JSONB))
@@ -238,7 +243,7 @@ async def handle_chunk_embed(job: dict) -> None:  # CHUNK_EMBED
             pass
         # Update status and chain
         await session.execute(
-            text("update public.documents set status='chunked' where id = :id"),
+            text(f"update {documents_table} set status='chunked' where id = :id"),
             {"id": document_id},
         )
         await _enqueue_job(session, "EXTRACT_NORMALIZE", document_id, {"document_id": document_id}, f"extract::{document_id}::v1")
@@ -255,9 +260,12 @@ async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
         # Idempotency: if clauses exist for doc, skip to next
+        clauses_table = schema_table("clauses")
+        documents_table = schema_table("documents")
+        chunks_table = schema_table("chunks")
         existing = (
             await session.execute(
-                text("select 1 from public.clauses where document_id = :id limit 1"),
+                text(f"select 1 from {clauses_table} where document_id = :id limit 1"),
                 {"id": document_id},
             )
         ).scalar_one_or_none()
@@ -268,7 +276,7 @@ async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
         # Load text and leverage (if any)
         row = (
             await session.execute(
-                text("select text_plain, pages_json, leverage_json from public.documents where id = :id"),
+                text(f"select text_plain, pages_json, leverage_json from {documents_table} where id = :id"),
                 {"id": document_id},
             )
         ).mappings().first()
@@ -310,8 +318,8 @@ async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
             len(normalized),
         )
         insert_clause = text(
-                    """
-                    insert into public.clauses (id, document_id, clause_key, title, text, start_idx, end_idx, page_hint, json_meta)
+                    f"""
+                    insert into {clauses_table} (id, document_id, clause_key, title, text, start_idx, end_idx, page_hint, json_meta)
                     values (gen_random_uuid(), :document_id, :clause_key, :title, :text, :start_idx, :end_idx, :page_hint, :json_meta)
                     returning id
                     """
@@ -335,7 +343,7 @@ async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
 
         rows = (
             await session.execute(
-                text("select id, block_id, page from public.chunks where document_id = :id"),
+                text(f"select id, block_id, page from {chunks_table} where document_id = :id"),
                 {"id": document_id},
             )
         ).mappings().all()
@@ -372,11 +380,11 @@ async def handle_extract_normalize(job: dict) -> None:  # EXTRACT_NORMALIZE
                     target_chunk = page_to_chunk[0]
             if target_chunk:
                 await session.execute(
-                    text("update public.chunks set clause_id = :cid where id = :chunk_id"),
+                    text(f"update {chunks_table} set clause_id = :cid where id = :chunk_id"),
                     {"cid": cid, "chunk_id": target_chunk},
                 )
         await session.execute(
-            text("update public.documents set status='extracted' where id = :id"),
+            text(f"update {documents_table} set status='extracted' where id = :id"),
             {"id": document_id},
         )
         await _enqueue_job(session, "BAND_MAP_GRAPH", document_id, {"document_id": document_id}, f"band::{document_id}::v1")
@@ -391,10 +399,12 @@ async def handle_band_map_graph(job: dict) -> None:  # BAND_MAP_GRAPH
         return
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
+        documents_table = schema_table("documents")
+        clauses_table = schema_table("clauses")
         # Idempotency: if graph_json exists, skip to ANALYZE
         existing = (
             await session.execute(
-                text("select graph_json from public.documents where id = :id"),
+                text(f"select graph_json from {documents_table} where id = :id"),
                 {"id": document_id},
             )
         ).mappings().first()
@@ -405,14 +415,14 @@ async def handle_band_map_graph(job: dict) -> None:  # BAND_MAP_GRAPH
         # Fetch clauses for graph nodes
         rows = (
             await session.execute(
-                text("select id, clause_key, title from public.clauses where document_id = :id order by created_at asc"),
+                text(f"select id, clause_key, title from {clauses_table} where document_id = :id order by created_at asc"),
                 {"id": document_id},
             )
         ).mappings().all()
         clause_nodes = [{"id": str(r["id"]), "clause_key": r["clause_key"], "title": r["title"]} for r in rows]
         graph = build_graph(document_id, clause_nodes)
         await session.execute(
-            text("update public.documents set graph_json=:g, status='graphed' where id = :id").bindparams(
+            text(f"update {documents_table} set graph_json=:g, status='graphed' where id = :id").bindparams(
                 bindparam("g", type_=JSONB)
             ),
             {"id": document_id, "g": graph},
@@ -428,14 +438,17 @@ async def handle_analyze(job: dict) -> None:  # ANALYZE
         return
     S = get_sessionmaker()
     async with S() as session:  # type: AsyncSession
+        documents_table = schema_table("documents")
+        clauses_table = schema_table("clauses")
+        analyses_table = schema_table("analyses")
         # Idempotency: if analyses count == clauses count, set status and exit
         counts = (
             await session.execute(
                 text(
-                    """
+                    f"""
                     select
-                      (select count(*) from public.clauses where document_id = :id) as n_clauses,
-                      (select count(*) from public.analyses where document_id = :id) as n_analyses
+                      (select count(*) from {clauses_table} where document_id = :id) as n_clauses,
+                      (select count(*) from {analyses_table} where document_id = :id) as n_analyses
                     """
                 ),
                 {"id": document_id},
@@ -445,7 +458,7 @@ async def handle_analyze(job: dict) -> None:  # ANALYZE
         n_analyses = int(counts["n_analyses"] or 0)
         if n_clauses > 0 and n_analyses >= n_clauses:
             await session.execute(
-                text("update public.documents set status='analyzed' where id=:id"),
+                text(f"update {documents_table} set status='analyzed' where id=:id"),
                 {"id": document_id},
             )
             await session.commit()
@@ -453,7 +466,7 @@ async def handle_analyze(job: dict) -> None:  # ANALYZE
         # Load leverage
         lev_row = (
             await session.execute(
-                text("select leverage_json from public.documents where id = :id"),
+                text(f"select leverage_json from {documents_table} where id = :id"),
                 {"id": document_id},
             )
         ).mappings().first()
@@ -461,7 +474,7 @@ async def handle_analyze(job: dict) -> None:  # ANALYZE
         # Iterate clauses and upsert analyses
         rows = (
             await session.execute(
-                text("select id, clause_key, text from public.clauses where document_id = :id order by created_at asc"),
+                text(f"select id, clause_key, text from {clauses_table} where document_id = :id order by created_at asc"),
                 {"id": document_id},
             )
         ).mappings().all()
@@ -478,7 +491,7 @@ async def handle_analyze(job: dict) -> None:  # ANALYZE
                 attributes=None,
             )
         await session.execute(
-            text("update public.documents set status='analyzed' where id=:id"),
+            text(f"update {documents_table} set status='analyzed' where id=:id"),
             {"id": document_id},
         )
         fire_event("analyzed", {"document_id": document_id, "n": len(rows)})
