@@ -23,6 +23,11 @@ def select_clause_templates(deal: DealConfig) -> List[str]:
     if deal.instrument_type == "SAFE":
         safe_excluded_clause_keys = {"liquidation_preference", "anti_dilution"}
 
+    # Special handling: if investor_board_seats is 0, prefer "no seats" template
+    board_template_priority = None
+    if deal.investor_board_seats == 0:
+        board_template_priority = "ts_board_no_seats_v1"
+
     # Iterate through templates and select matching ones
     for template in all_templates:
         # Skip if we've already selected a template for this clause_key
@@ -31,6 +36,13 @@ def select_clause_templates(deal: DealConfig) -> List[str]:
 
         # Skip SAFE-excluded clauses
         if template.clause_key in safe_excluded_clause_keys:
+            continue
+
+        # For board clause, if we have a priority template, only select that one
+        if template.clause_key == "board" and board_template_priority:
+            if template.template_id == board_template_priority and template.matches(deal):
+                selected_ids.append(template.template_id)
+                seen_clause_keys.add(template.clause_key)
             continue
 
         # Check if template matches deal configuration
@@ -61,25 +73,7 @@ def select_clause_templates(deal: DealConfig) -> List[str]:
                 selected_ids.append("ts_valuation_v1")
                 seen_clause_keys.add("pre_money_valuation")
 
-    # If investor_board_seats is 0, ensure we use the "no seats" template
-    if deal.investor_board_seats == 0:
-        # Remove any board composition template
-        selected_ids = [
-            tid for tid in selected_ids
-            if not any(
-                template.template_id == tid and template.clause_key == "board" and template.template_id != "ts_board_no_seats_v1"
-                for template in all_templates
-            )
-        ]
-        # Add no seats template if not present
-        if "board" not in seen_clause_keys:
-            no_seats_template = next(
-                (t for t in all_templates if t.template_id == "ts_board_no_seats_v1"),
-                None
-            )
-            if no_seats_template:
-                selected_ids.append("ts_board_no_seats_v1")
-                seen_clause_keys.add("board")
+    # Board seats handling is already done above during initial selection
 
     return selected_ids
 

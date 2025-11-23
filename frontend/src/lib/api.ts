@@ -81,4 +81,38 @@ export async function redraftClause(id: string) {
   return redraft
 }
 
+export async function generateTermSheet(nlInput: string) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 150000); // 150 second timeout
+  
+  try {
+    const res = await fetch(resolveApiUrl('/ts-generator/generate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nl_input: nlInput }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId);
+    const result = await json<{
+      term_sheet: string
+      deal_config: Record<string, any>
+      validation_errors: string[]
+      clarification_questions: string[] | null
+    }>(res)
+    if (import.meta.env.DEV) {
+      console.debug('[api] generateTermSheet', { 
+        hasTermSheet: Boolean(result?.term_sheet),
+        errors: result?.validation_errors?.length || 0,
+      })
+    }
+    return result
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out. The term sheet generation is taking longer than expected. Please try again.');
+    }
+    throw error;
+  }
+}
+
 

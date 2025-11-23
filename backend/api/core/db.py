@@ -8,3 +8,4 @@ def schema_table(table_name: str) -> str:
     return f"{schema}.{table_name}" if schema else table_name
 
 
+

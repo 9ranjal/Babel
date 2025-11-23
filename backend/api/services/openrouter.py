@@ -42,7 +42,7 @@ class OpenRouterClient:
                 f"{self.base_url}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=30.0,
+                timeout=120.0,  # Increased timeout for LLM calls
             )
 
         response.raise_for_status()

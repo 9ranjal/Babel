@@ -9,6 +9,7 @@ from langgraph.graph import StateGraph, END
 from api.models.deal_schemas import DealConfig, DealOverrides, get_base_deal_config
 from .clause_selector import select_clause_templates
 from .renderer import render_term_sheet
+from .base_template import get_base_template_text
 from ..openrouter import get_openrouter_client
 
 
@@ -122,8 +123,10 @@ def apply_defaults_node(state: DealState) -> DealState:
         deal = base_config
     else:
         # Merge overrides into base config
-        overrides_dict = overrides.model_dump(exclude_unset=True)
+        # Use model_dump(exclude_unset=True) to only get fields that were explicitly set
+        overrides_dict = overrides.model_dump(exclude_unset=True, exclude_none=False)
         deal_dict = base_config.model_dump()
+        # Update base config with overrides (overrides take precedence)
         deal_dict.update(overrides_dict)
         deal = DealConfig(**deal_dict)
 
@@ -181,15 +184,68 @@ def select_ts_clauses_node(state: DealState) -> DealState:
     return {**state, "selected_clause_ids": clause_ids}
 
 
-def render_ts_node(state: DealState) -> DealState:
-    """Render term sheet from selected clauses."""
+async def render_ts_node(state: DealState) -> DealState:
+    """Render term sheet using base template as reference, modified by deal config."""
     deal = state.get("deal")
     clause_ids = state.get("selected_clause_ids", [])
 
     if deal is None:
         return {**state, "rendered_term_sheet": None}
 
-    rendered = render_term_sheet(deal, clause_ids)
+    # Get base template text
+    base_template = get_base_template_text()
+    
+    # Use LLM to modify base template based on deal config
+    client = get_openrouter_client()
+    
+    # Convert deal config to JSON for LLM
+    deal_dict = deal.model_dump(exclude_none=True)
+    deal_json = json.dumps(deal_dict, indent=2)
+    
+    prompt = f"""You are a term sheet generator. You have a base term sheet template and a deal configuration.
+
+BASE TEMPLATE:
+{base_template}
+
+DEAL CONFIGURATION (JSON):
+{deal_json}
+
+TASK:
+Generate a complete term sheet by modifying the base template according to the deal configuration. 
+- Replace placeholder values (like [Insert Investment Amount]) with actual values from the deal configuration
+- Keep the exact language, structure, and formatting of the base template
+- Maintain the two-column table format (Label | Value)
+- For each term, include the label in the left column and the value in the right column
+- Add descriptive paragraphs below terms when appropriate, spanning both columns
+- Use the exact legal language from the base template, only updating the specific values
+- Format currency values appropriately (e.g., $5,000,000 for USD, ₹5,00,000 for INR)
+- Return the complete term sheet in HTML format with proper table structure
+
+Return ONLY the HTML term sheet, no other text."""
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a legal document generator specializing in term sheets. You modify base templates with deal-specific values while preserving the original legal language and structure.",
+        },
+        {"role": "user", "content": prompt},
+    ]
+
+    try:
+        rendered = await client.generate_response(messages, temperature=0.0, max_tokens=4000)
+        # Clean up response
+        rendered = rendered.strip()
+        if rendered.startswith("```html"):
+            rendered = rendered[7:]
+        if rendered.startswith("```"):
+            rendered = rendered[3:]
+        if rendered.endswith("```"):
+            rendered = rendered[:-3]
+        rendered = rendered.strip()
+    except Exception:
+        # Fallback to template-based rendering if LLM fails
+        rendered = render_term_sheet(deal, clause_ids)
+    
     return {**state, "rendered_term_sheet": rendered}
 
 
@@ -242,6 +298,12 @@ def get_graph():
     if _graph is None:
         _graph = create_term_sheet_graph()
     return _graph
+
+
+def reset_graph():
+    """Reset the graph instance (useful for testing)."""
+    global _graph
+    _graph = None
 
 
 async def generate_term_sheet(nl_input: str) -> Dict[str, Any]:

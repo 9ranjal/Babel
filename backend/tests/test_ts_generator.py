@@ -190,9 +190,12 @@ async def test_generate_term_sheet_integration(monkeypatch):
 @pytest.mark.asyncio
 async def test_generate_term_sheet_safe(monkeypatch):
     """Test term sheet generation for SAFE with mocked LLM."""
-    from api.services.ts_generator.graph import parse_nl_node
+    from api.services.ts_generator.graph import parse_nl_node, reset_graph
     from api.services.ts_generator import generate_term_sheet
     from api.models.deal_schemas import DealOverrides
+    
+    # Reset graph to ensure fresh instance
+    reset_graph()
     
     # Mock the LLM parsing to return deterministic overrides for SAFE
     async def mock_parse_nl_node(state):
@@ -211,7 +214,7 @@ async def test_generate_term_sheet_safe(monkeypatch):
     
     assert "term_sheet" in result
     deal_config = result["deal_config"]
-    assert deal_config.get("instrument_type") == "SAFE"
+    assert deal_config.get("instrument_type") == "SAFE", f"Expected SAFE, got {deal_config.get('instrument_type')}"
     assert deal_config.get("investment_amount") == 2000000
     
     # Verify SAFE-specific exclusions

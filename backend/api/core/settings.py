@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     )
 
     OPENROUTER_API_KEY: str = ""
-    OPENROUTER_MODEL: str = "openai/gpt-oss-20b:free"
+    OPENROUTER_MODEL: str = "deepseek/deepseek-chat-v3.1"
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_SITE_URL: str = "http://localhost:3000"
     OPENROUTER_APP_NAME: str = "Babel Copilot"
