@@ -22,6 +22,11 @@ default_frontend_origins = {
     "http://127.0.0.1:3001",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    # Production
+    "https://www.babel.buzz",
+    "https://babel.buzz",
+    "http://www.babel.buzz",
+    "http://babel.buzz",
 }
 frontend_origins = {
     origin.strip()
@@ -29,9 +34,9 @@ frontend_origins = {
     if origin.strip()
 }
 if not frontend_origins:
-    frontend_origins = default_frontend_origins
+    frontend_origins = default_frontend_origins.copy()
 else:
-    frontend_origins |= default_frontend_origins
+    frontend_origins = frontend_origins | default_frontend_origins
 
 from api.core.logging import logger
 logger.info("CORS allowed origins: %s", sorted(frontend_origins))

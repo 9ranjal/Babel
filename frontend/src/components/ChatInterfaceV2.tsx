@@ -369,10 +369,20 @@ export default function ChatInterfaceV2({ module = 'search', isMain = true, cont
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const bodyText = await response.text();
+        let detail = response.statusText;
+        try {
+          const errBody = JSON.parse(bodyText);
+          if (errBody?.detail) {
+            detail = typeof errBody.detail === 'string' ? errBody.detail : String(errBody.detail);
+          }
+        } catch {
+          if (bodyText) detail = bodyText;
+        }
+        throw new Error(detail || `HTTP ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { message?: string };
       const finalContent = data?.message ?? '';
           
           if (isMainView && currentSession) {

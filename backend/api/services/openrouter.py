@@ -47,7 +47,10 @@ class OpenRouterClient:
 
         response.raise_for_status()
         data = response.json()
-        return data["choices"][0]["message"]["content"]
+        try:
+            return data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as e:
+            raise ValueError(f"OpenRouter returned unexpected response shape: {e}") from e
 
 
 def get_openrouter_client() -> OpenRouterClient:
